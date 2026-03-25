@@ -54,5 +54,5 @@ jobs:
           # vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-name: tindacloud
           # vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          working-directory: client
+          working-directory: ./
           vercel-args: '--prod --yes'
