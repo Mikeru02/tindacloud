@@ -1,0 +1,61 @@
+DROP DATABASE IF EXISTS tindacloud;
+
+CREATE DATABASE IF NOT EXISTS tindacloud
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_general_ci;
+
+USE tindacloud;
+
+SET time_zone = '+08:00';
+
+CREATE TABLE `stores`(
+    `id` BIGINT AUTO_INCREMENT NOT NULL PRIMARY KEY,
+    `uuid` CHAR(36) NOT NULL UNIQUE,
+    `name` VARCHAR(255) NOT NULL,
+    `type` ENUM('retail', 'food') NOT NULL,
+    `location` VARCHAR(255) NOT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `users`(
+    `id` BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+    `uuid` CHAR(36) NOT NULL UNIQUE,
+    `store_id` BIGINT UNSIGNED NULL,
+    `full_name` VARCHAR(255) NOT NULL,
+    `email` VARCHAR(255) NOT NULL,
+    `phone` VARCHAR(15) NOT NULL,
+    `password` VARHCAR(255) NOT NULL,
+    `role` ENUM('owner', 'admin', 'staff') DEFAULT 'staff',
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (`store_id`) REFERENCES `stores`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `categories`(
+    `id` INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+    `uuid` CHAR(36) NOT NULL,
+    `store_id` BIGINT UNSIGNED NOT NULL,
+    `name` VARCHAR(100) NOT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (`store_id`) REFERENCES `stores`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `products`(
+    `id` BIGINT AUTO_INCREMENT NOT NULL PRIMARY KEY,
+    `uuid` CHAR(36) NOT NULL UNIQUE,
+    `name` VARCHAR(255) NOT NULL,
+    `sku` VARHCAR(64) NULL UNIQUE,
+    `store_id` INT NOT NULL,
+    `barcode` VARCHAR(255) NOT NULL,
+    `price` DECIMAL(19, 4) NOT NULL DEFAULT 0.0000,
+    `cost_price` DECIMAL(19, 4) NOT NULL DEFAULT 0.0000,
+    `stock_quantity` INT NOT NULL DEFAULT 0,
+    `low_stock_threshold` INT NOT NULL DEFAULT 5,
+    `status` ENUM('draft', 'active', 'archive') DEFAULT 'draft',
+    `category_id` INT UNSIGNED,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY `store_id` REFERENCES `stores`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
