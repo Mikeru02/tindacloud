@@ -11,19 +11,6 @@
   "author": "",
   "license": "ISC",
   "description": "",
-  "jest": {
-    "testEnvironment": "jest-environment-jsdom",
-    "transform": {
-      "^.+\\.jsx?$": "babel-jest"
-    },
-    "moduleFileExtensions": ["js","jsx"],
-    "setupFilesAfterEnv": ["@testing-library/jest-dom"],
-    "setupFiles": ["<rootDir>/src/tests/setupTests.js"],
-    "moduleNameMapper": {
-      "\\.(css|less|scss|sass)$": "identity-obj-proxy",
-      "\\.(png|jpg|jpeg|gif|svg)$": "<rootDir>/src/tests/fileMock.js"
-    }
-  },
   "dependencies": {
     "axios": "1.13.6",
     "react": "19.2.4",
