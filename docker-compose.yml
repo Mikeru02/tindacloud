@@ -1,0 +1,75 @@
+services:
+  client:
+    container_name: client
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    expose:
+      - 3000
+    ports:
+      - 3000:3000
+    networks:
+      - tindacloud
+    depends_on:
+      - server
+  
+  server:
+    container_name: server
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    expose:
+      - 4000
+    ports:
+      - 4000:4000
+    networks:
+      - tindacloud
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  mysql:
+    container_name: mysql
+    build:
+      context: ./mysql
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - 3306:3306
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - tindacloud
+    environment:
+      - MYSQL_ROOT_PASSWORD=tindacloud 
+      - MYSQL_DATABASE=tindacloud
+      - MYSQL_USER=tinda_user
+      - MYSQL_PASSWORD=tinda_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]  
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    container_name: redis
+    build:
+      context: ./redis
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - 6379:6379
+    volumes:
+      - redis_data:/data
+    networks:
+      - tindacloud
+
+networks:
+  tindacloud:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  redis_data:
