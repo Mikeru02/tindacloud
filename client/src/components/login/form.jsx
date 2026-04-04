@@ -1,4 +1,5 @@
-import React, { useState } from "react"; // Added useState
+import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import styles from "./styles/form.module.css";
 import Logo from "../../assets/logo1.png";
 
@@ -51,7 +52,7 @@ function Form() {
                 <button className={styles["loginBtn"]}>Login</button>
                 
                 <p className={styles["footerText"]}>
-                    Don't have an account? <span>Sign up</span>
+                    Don't have an account? <Link to="/signup" className={styles["span"]}>Sign Up</Link>
                 </p>
             </div>
         </div>

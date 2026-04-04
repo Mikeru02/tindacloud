@@ -108,13 +108,11 @@
     margin-top: 1.5rem;
 }
 
-.footerText span {
+.footerText .span {
     color: #3b82f6;
     font-weight: 600;
     cursor: pointer;
 }
-
-/* ... keep previous styles ... */
 
 .passwordWrapper {
     position: relative;

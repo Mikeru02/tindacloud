@@ -1,5 +1,6 @@
-import React, { useState, useRef } from "react"; // Added useRef
-import ReCAPTCHA from "react-google-recaptcha"; // 1. Import the library
+import React, { useState, useRef } from "react";
+import { Link } from "react-router-dom";
+import ReCAPTCHA from "react-google-recaptcha";
 import styles from "./styles/form.module.css";
 import Logo from "../../assets/logo1.png";
 
@@ -109,7 +110,7 @@ function Form() {
                 </button>
                 
                 <p className={styles["footerText"]}>
-                    Already have an account? <span>Log in</span>
+                    Already have an account? <Link to="/login" className={styles["span"]}>Log In</Link>
                 </p>
             </form>
         </div>
