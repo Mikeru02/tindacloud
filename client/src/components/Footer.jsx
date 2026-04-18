@@ -2,9 +2,11 @@ import React from "react";
 import Logo2 from "../assets/logo2.png";
 import NavLinks from "./NavLinks";
 
+import styles from "./styles/Footer.module.css";
+
 function Footer() {
     return (
-        <footer className="bg-gray-200 text-black text-center p-2">
+        <footer className={styles["footer"]}>
             <img 
                 src={Logo2}
                 alt="Footer Logo"
