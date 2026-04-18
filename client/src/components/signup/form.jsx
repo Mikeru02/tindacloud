@@ -1,29 +1,18 @@
-import React, { useState, useRef } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
-import ReCAPTCHA from "react-google-recaptcha";
 import styles from "./styles/form.module.css";
 import Logo from "../../assets/logo1.png";
+import useFormState from "../../hooks/useFormState";
 
 function Form() {
-    const [showPassword, setShowPassword] = useState(false);
-    const [captchaToken, setCaptchaToken] = useState(null); // 2. State to store the token
-    const recaptchaRef = useRef(null);
-
-    // 3. Handle captcha change
-    const onCaptchaChange = (token) => {
-        setCaptchaToken(token);
-    };
+    const {
+        showPassword, setShowPassword,
+        acceptedTerms, setAcceptedTerms
+    } = useFormState();
 
     const handleSignup = (e) => {
         e.preventDefault();
-        
-        if (!captchaToken) {
-            alert("Please complete the 'I am not a robot' check.");
-            return;
-        }
 
-        // Proceed with your API call here
-        console.log("Form submitted with captcha:", captchaToken);
     };
 
     return (
@@ -95,14 +84,20 @@ function Form() {
                         </button>
                     </div>
                 </div>
-                
-                {/* 4. The reCAPTCHA Widget */}
-                <div className={styles["captchaWrapper"]}>
-                    <ReCAPTCHA
-                        ref={recaptchaRef}
-                        sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY} // Replace with your real Site Key
-                        onChange={onCaptchaChange}
+
+                <div className={styles["checboxGroup"]}>
+                    <input
+                        type="checkbox"
+                        id="terms"
+                        checked={acceptedTerms}
+                        onChange={(e) => setAcceptedTerms(e.target.checked)}
                     />
+                    <label htmlFor="terms">
+                        I agree to the{" "}
+                        <Link to="/terms" className={styles["span-tc"]}>
+                            Terms and Conditions
+                        </Link>
+                    </label>
                 </div>
                 
                 <button type="submit" className={styles["signupBtn"]}>
