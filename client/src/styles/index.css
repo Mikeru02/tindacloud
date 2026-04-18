@@ -1,19 +1,37 @@
-@tailwind base;
+/* @tailwind base;
 @tailwind components;
-@tailwind utilities;
+@tailwind utilities; */
 
 /* Reset some defaults */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  scroll-behavior: smooth;
+}
+
+html {
+  font-size: 16px;
+
 }
 
 /* Global body styles */
 body {
   font-family: 'Inter', sans-serif;
-  color: #333;
-  min-height: 100vh; /* ensures gradient covers full page */
+  background-color: var(--background-color);
+  color: var(--font-color);
+  min-height: 100vh;
+}
+
+:root {
+  /* Light Mode */
+  --background-color: #fefcfb;
+  --footer-background-color: #e5e5e5;
+  --font-color: #22223b;
+  --card-background-color: #edede9;
+  --primary-button-background-color: #;
+  --primay-button-font-color: #;
+  --secondary-button-color: #;
 }
 
 /* Links */
@@ -33,4 +51,9 @@ a {
 
 .nav-links-img {
   width: 2rem;
+}
+
+.card {
+  width: 100vw;
+  border: solid red 1px;
 }
