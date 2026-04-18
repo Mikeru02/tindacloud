@@ -117,11 +117,19 @@
     margin-top: 1.5rem;
 }
 
-.footerText .span {
+.footerText .span, .span-tc{
     color: #3b82f6;
     font-weight: 600;
     cursor: pointer;
 }
+
+.checboxGroup {
+    display: flex;
+    justify-content: space-evenly;
+    margin-bottom: 1rem;
+}
+
+
 
 /* Responsive adjustment for small mobile screens */
 @media (max-width: 400px) {
