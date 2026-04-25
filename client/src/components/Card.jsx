@@ -1,8 +1,8 @@
 import React from "react";
 
-function Card({ children }) {
+function Card({ children, customStyles = "" }) {
     return (
-        <div className="">
+        <div className={`${customStyles}`}>
             {children}
         </div>
     )

@@ -1,8 +1,8 @@
 import React from "react";
 
-function SectionCard({ children }) {
+function SectionCard({ children, customStyles = "" }) {
     return (
-        <section className="">
+        <section className={`${customStyles}`}>
             {children}
         </section>
     );

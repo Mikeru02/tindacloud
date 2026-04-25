@@ -4,7 +4,7 @@ function DefaultLayout({ headerContent, footerContent, children }) {
 	return (
 		<>
 			{headerContent}
-			<main>{children}</main>
+			<main className="px-2">{children}</main>
 			{footerContent}
 		</>
 	);
