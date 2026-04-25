@@ -16,6 +16,7 @@ function PasswordField({
             <div className="relative flex items-center">
                 <input
                     className="w-full px-3 py-4 border border-2 border-[#e2e8f0] rounded-lg text-sm"
+                    name={id}
                     id={id}
                     type={showPassword ? "text" : "password"}
                     value={value}

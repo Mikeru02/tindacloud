@@ -14,9 +14,34 @@ function Signup() {
         acceptedTerms, setAcceptedTerms
     } = useFormState();
 
+    const handleSignup = (e) => {
+        const formData = new FormData(e.target);
+
+        const data = {
+            firstName: formData.get("firstName"),
+            lastName: formData.get("lastName"),
+            phoneNumber: formData.get("phoneNumber"),
+            email: formData.get("email"),
+            password: formData.get("password"),
+            retypePassword: formData.get("retypePassword"),
+        }
+
+        console.log("[DEBUG] Data: ", data);
+
+        if (!acceptedTerms){
+            alert("You must accept the Terms and Conditions");
+            return;
+        }
+
+        if (data.password !== data.retypePassword) {
+            alert("Password doesn't match");
+            return;
+        }
+    }
+
     return (
         <MainOnly>
-            <Form>
+            <Form submitEvent={handleSignup}>
                 <div className="flex flex-col items-center mb-8">
                     <MainLogo />
                     <h1 className="text-[#1e293b] font-bold text-2xl">Create Account</h1>

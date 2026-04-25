@@ -13,6 +13,7 @@ function InputField({
             </label>
             <input
                 className="w-full px-3 py-4 border border-2 border-[#e2e8f0] rounded-lg text-sm"
+                name={id}
                 id={id}
                 type={type}
                 placeholder={placeholder}
