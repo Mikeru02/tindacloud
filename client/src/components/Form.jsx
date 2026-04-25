@@ -8,7 +8,7 @@ function Form({ children, submitEvent }) {
 
     return (
         <form 
-            className="w-100 p-8" 
+            className="w-full p-8" 
             onSubmit={handleSubmit}>
             {children}
         </form>

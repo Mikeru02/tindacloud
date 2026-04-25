@@ -84,6 +84,7 @@ function Signup() {
                 </div>
 
                 <Button
+                    type="submit"
                     customStyles="w-full my-4"
                 >Create my Account</Button>
                 <p className="text-center">
