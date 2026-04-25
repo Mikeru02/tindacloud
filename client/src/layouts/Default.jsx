@@ -1,12 +1,10 @@
 import React from "react";
 
-import styles from "./styles/Default.module.css";
-
 function DefaultLayout({ headerContent, footerContent, children }) {
 	return (
 		<>
 			{headerContent}
-			<main>{children}</main>
+			<main className="px-2">{children}</main>
 			{footerContent}
 		</>
 	);

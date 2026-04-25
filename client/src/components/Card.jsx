@@ -1,10 +1,8 @@
 import React from "react";
 
-import styles from "./styles/Card.module.css";
-
-function Card({ children }) {
+function Card({ children, customStyles = "" }) {
     return (
-        <div className={styles["card"]}>
+        <div className={`${customStyles}`}>
             {children}
         </div>
     )

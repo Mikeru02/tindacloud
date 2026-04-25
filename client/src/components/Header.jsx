@@ -1,19 +1,14 @@
 import React from "react";
-import Logo2 from "../assets/logo2.png";
 import Button from "./Button";
+import LongLogo from "./LongLogo";
 import useNavigation from "../hooks/useNavigation";
-import styles from "./styles/Header.module.css";
 
 function Header() {
     const { goTo } = useNavigation();
 
     return (
-        <header className={styles["header"]}>
-            <img 
-                src={Logo2}
-                alt="Header Logo"
-                className="header-logo"
-            />
+        <header className="w-screen px-2 py-1 flex justify-between">
+            <LongLogo></LongLogo>
             <Button
                 onClick={() => goTo("/login")}
             >

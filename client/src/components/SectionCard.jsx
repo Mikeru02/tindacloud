@@ -1,10 +1,8 @@
 import React from "react";
 
-import styles from "./styles/SectionCard.module.css";
-
-function SectionCard({ children }) {
+function SectionCard({ children, customStyles = "" }) {
     return (
-        <section className={styles["section-card"]}>
+        <section className={`${customStyles}`}>
             {children}
         </section>
     );
