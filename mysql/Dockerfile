@@ -3,7 +3,6 @@ FROM mysql:8.0
 COPY schema.sql /docker-entrypoint-initdb.d/
 
 ENV MYSQL_DATABASE=tindacloud
-ENV MYSQL_ROOT_PASSWORD=tindacloud
 
 # (Optional) Copy a custom config file
 # COPY my.cnf /etc/mysql/conf.d/

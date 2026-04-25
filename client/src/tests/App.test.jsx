@@ -47,7 +47,7 @@ describe("App routing", () => {
     //expect(screen.getByText(/Welcome/i)).toBeInTheDocument();
 
     // Simulate navigation by rendering App at /login
-    render(
+    render(/
       <MemoryRouter initialEntries={["/login"]}>
         <App />
       </MemoryRouter>
@@ -55,4 +55,14 @@ describe("App routing", () => {
 
     expect(screen.getByRole("heading", { name: /TindaCloud Login/i })).toBeInTheDocument();
   });
+
+  test("renders Not Found page for unknown route", () => {
+    render(
+      <MemoryRouter initialEntries={["/unknown-route"]}>
+        <App />
+      </MemoryRouter>
+    )/
+
+    expect(screen.getByText(/404 - Page Not Found/i) 
+  }
 });

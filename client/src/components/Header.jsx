@@ -1,24 +1,19 @@
 import React from "react";
-import Logo2 from "../assets/logo2.png";
+import Button from "./Button";
+import LongLogo from "./LongLogo";
+import useNavigation from "../hooks/useNavigation";
 
 function Header() {
-    const signUpClick = () => {
-        alert('Button click');
-    }
+    const { goTo } = useNavigation();
 
     return (
-        <header className="flex justify-between p-2">
-            <img 
-                src={Logo2}
-                alt="Header Logo"
-                className="header-logo"
-            />
-            <button
-                onClick={signUpClick}
-                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        <header className="w-screen px-2 py-1 flex justify-between">
+            <LongLogo></LongLogo>
+            <Button
+                onClick={() => goTo("/login")}
             >
-                Sign Up
-            </button>
+                Login
+            </Button>
         </header>
     );
 }
