@@ -1,0 +1,29 @@
+{
+  "name": "tindacloud",
+  "version": "1.0.0",
+  "description": "A cloud-based POS and inventory system for small retail stores.",
+  "private": true,
+
+  "workspaces": [
+    "apps/web/*",
+    "apps/mobile/*",
+    "services/*",
+    "packages/*"
+  ],
+
+  "scripts": {
+    "dev": "npm run dev --workspaces",
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces"
+  },
+
+  "keywords": [
+    "pos",
+    "inventory",
+    "marketplace",
+    "retail"
+  ],
+
+  "author": "Michael Alexis Ponce",
+  "license": "ISC"
+}
