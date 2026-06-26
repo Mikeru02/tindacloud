@@ -1,11 +1,12 @@
 {
-  "name": "api",
+  "name": "@tindacloud/node-api",
   "version": "1.0.0",
   "type": "module",
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "build": "esbuild src/server.js --bundle --platform=node --target=node20 --outfile=dist/server.js"
   },
   "keywords": [],
   "author": "",
@@ -24,6 +25,7 @@
     "pg": "^8.22.0"
   },
   "devDependencies": {
+    "esbuild": "^0.28.1",
     "nodemon": "^3.1.14"
   }
 }
