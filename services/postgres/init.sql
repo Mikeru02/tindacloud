@@ -1,0 +1,180 @@
+-- ==========================================
+-- 1. INDEPENDENT TABLES (No Foreign Keys)
+-- ==========================================
+
+CREATE TABLE users (
+    id SERIAL,
+    email VARCHAR(255) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    phone VARCHAR(50),
+    status VARCHAR(50) DEFAULT 'active',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    -- CONSTRAINTS
+    CONSTRAINT pk_users PRIMARY KEY (id),
+    CONSTRAINT uq_users_email UNIQUE (email)
+);
+
+CREATE TABLE merchants (
+    id SERIAL,
+    store_name VARCHAR(255) NOT NULL,
+    publicity BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    -- CONSTRAINTS
+    CONSTRAINT pk_merchants PRIMARY KEY (id)
+);
+
+CREATE TABLE category (
+    id SERIAL,
+    name VARCHAR(100) NOT NULL,
+    
+    -- CONSTRAINTS
+    CONSTRAINT pk_category PRIMARY KEY (id)
+);
+
+-- ==========================================
+-- 2. DEPENDENT TABLES (Profiles & Management)
+-- ==========================================
+
+CREATE TABLE customers (
+    user_id INTEGER,
+    birthdate DATE,
+    address TEXT,
+    loyalty_points INTEGER DEFAULT 0,
+    
+    -- CONSTRAINTS
+    CONSTRAINT pk_customers PRIMARY KEY (user_id),
+    CONSTRAINT fk_customers_user FOREIGN KEY (user_id) 
+        REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT chk_customers_points CHECK (loyalty_points >= 0)
+);
+
+CREATE TABLE merchant_members (
+    merchant_id INTEGER,
+    user_id INTEGER,
+    role VARCHAR(50) NOT NULL,
+    
+    -- CONSTRAINTS
+    CONSTRAINT pk_merchant_members PRIMARY KEY (merchant_id, user_id),
+    CONSTRAINT fk_members_merchant FOREIGN KEY (merchant_id) 
+        REFERENCES merchants(id) ON DELETE CASCADE,
+    CONSTRAINT fk_members_user FOREIGN KEY (user_id) 
+        REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE merchant_invitation (
+    id SERIAL,
+    merchant_id INTEGER NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    role VARCHAR(50) NOT NULL,
+    token VARCHAR(255) NOT NULL,
+    expire_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    status VARCHAR(50) DEFAULT 'pending',
+    
+    -- CONSTRAINTS
+    CONSTRAINT pk_merchant_invitation PRIMARY KEY (id),
+    CONSTRAINT uq_invitation_token UNIQUE (token),
+    CONSTRAINT fk_invitation_merchant FOREIGN KEY (merchant_id) 
+        REFERENCES merchants(id) ON DELETE CASCADE
+);
+
+-- ==========================================
+-- 3. CORE PRODUCTS CATALOG
+-- ==========================================
+
+CREATE TABLE products (
+    id SERIAL,
+    merchant_id INTEGER NOT NULL,
+    category_id INTEGER,
+    name VARCHAR(255) NOT NULL,
+    sku VARCHAR(100) NOT NULL,
+    price NUMERIC(12, 2) NOT NULL,
+    cost NUMERIC(12, 2) NOT NULL,
+    stock INTEGER NOT NULL DEFAULT 0,
+    status VARCHAR(50) DEFAULT 'active',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    -- CONSTRAINTS
+    CONSTRAINT pk_products PRIMARY KEY (id),
+    CONSTRAINT uq_products_sku UNIQUE (sku),
+    CONSTRAINT fk_products_merchant FOREIGN KEY (merchant_id) 
+        REFERENCES merchants(id) ON DELETE RESTRICT, -- Prevents deleting store if inventory exists
+    CONSTRAINT fk_products_category FOREIGN KEY (category_id) 
+        REFERENCES category(id) ON DELETE SET NULL,
+    CONSTRAINT chk_products_price CHECK (price >= 0.00),
+    CONSTRAINT chk_products_cost CHECK (cost >= 0.00),
+    CONSTRAINT chk_products_stock CHECK (stock >= 0)
+);
+
+-- ==========================================
+-- 4. ACTIVE SHOPPING CARTS
+-- ==========================================
+
+CREATE TABLE cart (
+    id SERIAL,
+    user_id INTEGER NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    -- CONSTRAINTS
+    CONSTRAINT pk_cart PRIMARY KEY (id),
+    CONSTRAINT fk_cart_user FOREIGN KEY (user_id) 
+        REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE cart_items (
+    id SERIAL,
+    cart_id INTEGER NOT NULL,
+    product_id INTEGER NOT NULL,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    
+    -- CONSTRAINTS
+    CONSTRAINT pk_cart_items PRIMARY KEY (id),
+    CONSTRAINT uq_cart_product UNIQUE (cart_id, product_id), -- Keeps unique item lines per cart
+    CONSTRAINT fk_cart_items_cart FOREIGN KEY (cart_id) 
+        REFERENCES cart(id) ON DELETE CASCADE,
+    CONSTRAINT fk_cart_items_product FOREIGN KEY (product_id) 
+        REFERENCES products(id) ON DELETE CASCADE,
+    CONSTRAINT chk_cart_items_qty CHECK (quantity > 0)
+);
+
+-- ==========================================
+-- 5. HISTORICAL SALES & LEDGERS
+-- ==========================================
+
+CREATE TABLE orders (
+    id SERIAL,
+    user_id INTEGER NOT NULL,
+    amount NUMERIC(12, 2) NOT NULL,
+    status VARCHAR(50) DEFAULT 'pending',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    -- CONSTRAINTS
+    CONSTRAINT pk_orders PRIMARY KEY (id),
+    CONSTRAINT fk_orders_user FOREIGN KEY (user_id) 
+        REFERENCES users(id) ON DELETE RESTRICT, -- Keeps customer link secure for finance audits
+    CONSTRAINT chk_orders_amount CHECK (amount >= 0.00)
+);
+
+CREATE TABLE order_items (
+    id SERIAL,
+    order_id INTEGER NOT NULL,
+    product_id INTEGER NOT NULL,
+    quantity INTEGER NOT NULL,
+    price NUMERIC(12, 2) NOT NULL, -- Point-of-sale historical snapshot
+    
+    -- CONSTRAINTS
+    CONSTRAINT pk_order_items PRIMARY KEY (id),
+    CONSTRAINT fk_order_items_order FOREIGN KEY (order_id) 
+        REFERENCES orders(id) ON DELETE CASCADE,
+    CONSTRAINT fk_order_items_product FOREIGN KEY (product_id) 
+        REFERENCES products(id) ON DELETE RESTRICT, -- Preserves purchase logs even if items go out of stock
+    CONSTRAINT chk_order_items_qty CHECK (quantity > 0),
+    CONSTRAINT chk_order_items_price CHECK (price >= 0.00)
+);
