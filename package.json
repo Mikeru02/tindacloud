@@ -4,17 +4,10 @@
   "description": "A cloud-based POS and inventory system for small retail stores.",
   "private": true,
 
-  "workspaces": [
-    "apps/web/*",
-    "apps/mobile/*",
-    "services/*",
-    "packages/*"
-  ],
-
   "scripts": {
-    "dev": "npm run dev --workspaces",
-    "build": "npm run build --workspaces",
-    "test": "npm run test --workspaces"
+    "dev": "pnpm --filter \"./apps/**\" --filter \"./services/**\" --filter \"./packages/**\" dev",
+    "build": "pnpm --filter \"./apps/**\" --filter \"./services/**\" --filter \"./packages/**\" build",
+    "test": "pnpm --filter \"./apps/**\" --filter \"./services/**\" --filter \"./packages/**\" test"
   },
 
   "keywords": [
