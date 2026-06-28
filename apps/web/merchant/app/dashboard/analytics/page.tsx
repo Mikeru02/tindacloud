@@ -1,6 +1,88 @@
-import React from 'react';
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import apiClient from '../../api/client';
+
+interface AnalyticsData {
+  revenue: {
+    revenue: number;
+    percentageChange: string;
+  };
+  averageOrderValue: {
+    averageOrderValue: number;
+    percentageChange: string;
+  };
+  conversionRate: {
+    conversionRate: number;
+    percentageChange: string;
+  };
+  dailySales: Record<string, number>;
+  salesByCategory: Array<{
+    category: string;
+    amount: number;
+    percentage: string;
+  }>;
+  topProducts: Array<{
+    name: string;
+    sales: number;
+    revenue: number;
+  }>;
+}
 
 export default function AnalyticsPage() {
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        const response = await apiClient.get('/analytics');
+        setAnalytics(response.data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load analytics');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAnalytics();
+  }, []);
+
+  if (loading) {
+    return (
+      <div>
+        <h1 className="text-3xl font-bold mb-8" style={{ color: '#22c55e' }}>
+          Analytics
+        </h1>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-[#222] rounded-xl p-6 border border-[#333]">
+              <div className="h-6 w-32 bg-[#333] rounded animate-pulse mb-2"></div>
+              <div className="h-10 w-24 bg-[#333] rounded animate-pulse mb-2"></div>
+              <div className="h-4 w-40 bg-[#333] rounded animate-pulse"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div>
+        <h1 className="text-3xl font-bold mb-8" style={{ color: '#22c55e' }}>
+          Analytics
+        </h1>
+        <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-3 rounded-lg">
+          {error}
+        </div>
+      </div>
+    );
+  }
+
+  if (!analytics) return null;
+
   return (
     <div>
       <h1 className="text-3xl font-bold mb-8" style={{ color: '#22c55e' }}>
@@ -13,10 +95,10 @@ export default function AnalyticsPage() {
             Revenue This Month
           </h3>
           <p className="text-3xl font-bold" style={{ color: '#22c55e' }}>
-            $24,580
+            ₱{analytics.revenue.revenue.toFixed(2)}
           </p>
-          <p className="text-sm mt-2" style={{ color: '#16a34a' }}>
-            +18.2% from last month
+          <p className={`text-sm mt-2 ${parseFloat(analytics.revenue.percentageChange) >= 0 ? 'text-[#16a34a]' : 'text-[#ef4444]'}`}>
+            {parseFloat(analytics.revenue.percentageChange) >= 0 ? '+' : ''}{analytics.revenue.percentageChange}% from last month
           </p>
         </div>
         
@@ -25,10 +107,10 @@ export default function AnalyticsPage() {
             Average Order Value
           </h3>
           <p className="text-3xl font-bold" style={{ color: '#22c55e' }}>
-            $89.50
+            ₱{analytics.averageOrderValue.averageOrderValue.toFixed(2)}
           </p>
-          <p className="text-sm mt-2" style={{ color: '#16a34a' }}>
-            +5.4% from last month
+          <p className={`text-sm mt-2 ${parseFloat(analytics.averageOrderValue.percentageChange) >= 0 ? 'text-[#16a34a]' : 'text-[#ef4444]'}`}>
+            {parseFloat(analytics.averageOrderValue.percentageChange) >= 0 ? '+' : ''}{analytics.averageOrderValue.percentageChange}% from last month
           </p>
         </div>
         
@@ -37,10 +119,10 @@ export default function AnalyticsPage() {
             Conversion Rate
           </h3>
           <p className="text-3xl font-bold" style={{ color: '#22c55e' }}>
-            3.2%
+            {analytics.conversionRate.conversionRate}
           </p>
-          <p className="text-sm mt-2" style={{ color: '#ef4444' }}>
-            -0.8% from last month
+          <p className={`text-sm mt-2 ${parseFloat(analytics.conversionRate.percentageChange) >= 0 ? 'text-[#16a34a]' : 'text-[#ef4444]'}`}>
+            {parseFloat(analytics.conversionRate.percentageChange) >= 0 ? '+' : ''}{analytics.conversionRate.percentageChange}% from last month
           </p>
         </div>
       </div>
@@ -74,53 +156,65 @@ export default function AnalyticsPage() {
                 fill="#9ca3af"
                 fontSize="12"
               >
-                ${200 - value * 2}
+                ₱{200 - value * 2}
               </text>
             ))}
             
             {/* X-axis labels */}
-            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => (
-              <text
-                key={day}
-                x={80 + index * 100}
-                y="240"
-                textAnchor="middle"
-                fill="#9ca3af"
-                fontSize="12"
-              >
-                {day}
-              </text>
-            ))}
+            {Object.keys(analytics.dailySales).map((date, index) => {
+              const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'short' });
+              return (
+                <text
+                  key={date}
+                  x={80 + index * 100}
+                  y="240"
+                  textAnchor="middle"
+                  fill="#9ca3af"
+                  fontSize="12"
+                >
+                  {dayName}
+                </text>
+              );
+            })}
             
             {/* Line chart */}
-            <polyline
-              points="80,150 180,100 280,120 380,80 480,60 580,90 680,50"
-              fill="none"
-              stroke="#22c55e"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
+            {Object.values(analytics.dailySales).length > 0 && (() => {
+              const values = Object.values(analytics.dailySales);
+              const maxValue = Math.max(...values, 1);
+              const points = values.map((value, index) => {
+                const x = 80 + index * 100;
+                const y = 225 - (value / maxValue) * 200;
+                return `${x},${y}`;
+              }).join(' ');
+              
+              return (
+                <polyline
+                  points={points}
+                  fill="none"
+                  stroke="#22c55e"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              );
+            })()}
             
             {/* Data points */}
-            {[
-              { x: 80, y: 150, value: '$100' },
-              { x: 180, y: 100, value: '$200' },
-              { x: 280, y: 120, value: '$160' },
-              { x: 380, y: 80, value: '$240' },
-              { x: 480, y: 60, value: '$280' },
-              { x: 580, y: 90, value: '$220' },
-              { x: 680, y: 50, value: '$300' },
-            ].map((point) => (
-              <circle
-                key={point.x}
-                cx={point.x}
-                cy={point.y}
-                r="6"
-                fill="#22c55e"
-                className="hover:r-8 transition-all cursor-pointer"
-              />
-            ))}
+            {Object.entries(analytics.dailySales).map(([date, value], index) => {
+              const maxValue = Math.max(...Object.values(analytics.dailySales), 1);
+              const x = 80 + index * 100;
+              const y = 225 - (value / maxValue) * 200;
+              return (
+                <circle
+                  key={date}
+                  cx={x}
+                  cy={y}
+                  r="6"
+                  fill="#22c55e"
+                  className="hover:r-8 transition-all cursor-pointer"
+                />
+              );
+            })}
           </svg>
         </div>
       </div>
@@ -131,29 +225,27 @@ export default function AnalyticsPage() {
             Sales by Category
           </h3>
           <div className="space-y-4">
-            {[
-              { category: 'Electronics', percentage: 35, amount: '$8,603' },
-              { category: 'Clothing', percentage: 28, amount: '$6,882' },
-              { category: 'Home & Garden', percentage: 20, amount: '$4,916' },
-              { category: 'Sports', percentage: 12, amount: '$2,950' },
-              { category: 'Other', percentage: 5, amount: '$1,229' },
-            ].map((item) => (
-              <div key={item.category}>
-                <div className="flex justify-between mb-2">
-                  <span style={{ color: '#9ca3af' }}>{item.category}</span>
-                  <span style={{ color: '#22c55e' }}>{item.amount}</span>
+            {analytics.salesByCategory.length > 0 ? (
+              analytics.salesByCategory.map((item) => (
+                <div key={item.category}>
+                  <div className="flex justify-between mb-2">
+                    <span style={{ color: '#9ca3af' }}>{item.category}</span>
+                    <span style={{ color: '#22c55e' }}>₱{item.amount.toFixed(2)}</span>
+                  </div>
+                  <div className="w-full bg-[#333] rounded-full h-2">
+                    <div
+                      className="h-2 rounded-full transition-all"
+                      style={{
+                        width: `${item.percentage}%`,
+                        backgroundColor: '#22c55e'
+                      }}
+                    ></div>
+                  </div>
                 </div>
-                <div className="w-full bg-[#333] rounded-full h-2">
-                  <div
-                    className="h-2 rounded-full transition-all"
-                    style={{
-                      width: `${item.percentage}%`,
-                      backgroundColor: '#22c55e'
-                    }}
-                  ></div>
-                </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p style={{ color: '#666' }}>No sales data available</p>
+            )}
           </div>
         </div>
         
@@ -162,21 +254,19 @@ export default function AnalyticsPage() {
             Top Products
           </h3>
           <div className="space-y-4">
-            {[
-              { name: 'Product A', sales: 234, revenue: '$7,017' },
-              { name: 'Product B', sales: 189, revenue: '$9,445' },
-              { name: 'Product C', sales: 156, revenue: '$3,119' },
-              { name: 'Product D', sales: 134, revenue: '$5,359' },
-              { name: 'Product E', sales: 98, revenue: '$5,878' },
-            ].map((product) => (
-              <div key={product.name} className="flex items-center justify-between py-3 border-b border-[#333] last:border-0">
-                <div>
-                  <p className="font-medium" style={{ color: '#22c55e' }}>{product.name}</p>
-                  <p className="text-sm" style={{ color: '#9ca3af' }}>{product.sales} sold</p>
+            {analytics.topProducts.length > 0 ? (
+              analytics.topProducts.map((product) => (
+                <div key={product.name} className="flex items-center justify-between py-3 border-b border-[#333] last:border-0">
+                  <div>
+                    <p className="font-medium" style={{ color: '#22c55e' }}>{product.name}</p>
+                    <p className="text-sm" style={{ color: '#9ca3af' }}>{product.sales} sold</p>
+                  </div>
+                  <p className="font-medium" style={{ color: '#22c55e' }}>₱{product.revenue.toFixed(2)}</p>
                 </div>
-                <p className="font-medium" style={{ color: '#22c55e' }}>{product.revenue}</p>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p style={{ color: '#666' }}>No product data available</p>
+            )}
           </div>
         </div>
       </div>

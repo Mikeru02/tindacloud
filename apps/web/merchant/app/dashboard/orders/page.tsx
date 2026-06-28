@@ -217,7 +217,7 @@ export default function OrdersPage() {
                     <td className="p-4 font-medium" style={{ color: '#22c55e' }}>#{order.id}</td>
                     <td className="p-4" style={{ color: '#9ca3af' }}>{getCustomerName(order)}</td>
                     <td className="p-4" style={{ color: '#9ca3af' }}>{formatDate(order.created_at)}</td>
-                    <td className="p-4" style={{ color: '#22c55e' }}>${order.amount.toFixed(2)}</td>
+                    <td className="p-4" style={{ color: '#22c55e' }}>${Number(order.amount).toFixed(2)}</td>
                     <td className="p-4">
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
                         {order.status}

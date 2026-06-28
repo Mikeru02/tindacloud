@@ -84,7 +84,7 @@ export default function DashboardPage() {
           {[...Array(2)].map((_, i) => (
             <div key={i} className="bg-[#222] rounded-xl p-6 border border-[#333]">
               <div className="h-7 w-32 bg-[#333] rounded mb-4 animate-pulse"></div>
-              <div className="space-y-4">
+              <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
                 {[...Array(5)].map((_, j) => (
                   <div key={j} className="flex items-center justify-between py-3 border-b border-[#333]">
                     <div className="flex-1">
@@ -181,7 +181,7 @@ export default function DashboardPage() {
           <h3 className="text-xl font-bold mb-4" style={{ color: '#22c55e' }}>
             Recent Orders
           </h3>
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
             {recentOrders.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12">
                 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mb-4">
@@ -203,7 +203,7 @@ export default function DashboardPage() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="font-medium" style={{ color: '#22c55e' }}>₱{order.amount.toFixed(2)}</p>
+                    <p className="font-medium" style={{ color: '#22c55e' }}>₱{Number(order.amount).toFixed(2)}</p>
                     <p className="text-sm" style={{ color: '#9ca3af' }}>{order.status}</p>
                   </div>
                 </div>
@@ -216,7 +216,7 @@ export default function DashboardPage() {
           <h3 className="text-xl font-bold mb-4" style={{ color: '#22c55e' }}>
             Low Stock Alerts
           </h3>
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
             {lowStockProducts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12">
                 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mb-4">

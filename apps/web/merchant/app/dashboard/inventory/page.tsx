@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '../../api/client';
 
@@ -31,8 +31,9 @@ export default function InventoryPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginatedResponse | null>(null);
   const ITEMS_PER_PAGE = 10;
+  const isFirstRender = useRef(true);
 
-  const fetchProducts = async (page: number = 1, search?: string) => {
+  const fetchProducts = useCallback(async (page: number = 1, search?: string) => {
     setLoading(true);
     setError(null);
 
@@ -54,21 +55,46 @@ export default function InventoryPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
+    console.log('[Inventory] Component MOUNTED', new Date().toISOString());
+    return () => {
+      console.log('[Inventory] Component UNMOUNTED', new Date().toISOString());
+      isFirstRender.current = true; // Reset for React Strict Mode double-mount
+    };
+  }, []);
+
+  useEffect(() => {
+    console.log('[Inventory] FETCH EFFECT - currentPage:', currentPage, 'time:', new Date().toISOString());
     fetchProducts(currentPage);
-  }, [currentPage]);
+  }, [currentPage, fetchProducts]);
 
   // Debounced search effect
   useEffect(() => {
-    const debounceTimer = setTimeout(() => {
-      setCurrentPage(1); // Reset to first page on new search
-      fetchProducts(1, searchQuery || undefined);
-    }, 1500); // 1.5 second debounce
+    console.log('[Inventory] SEARCH EFFECT - searchQuery:', searchQuery, 'time:', new Date().toISOString());
+    
+    // Skip the initial render to prevent flickering
+    if (isFirstRender.current) {
+      console.log('[Inventory] SEARCH EFFECT skipped - initial render');
+      isFirstRender.current = false;
+      return;
+    }
 
-    return () => clearTimeout(debounceTimer);
-  }, [searchQuery]);
+    const debounceTimer = setTimeout(() => {
+      console.log('[Inventory] SEARCH DEBOUNCE fired - fetching with search:', searchQuery, 'time:', new Date().toISOString());
+      if (currentPage === 1) {
+        fetchProducts(1, searchQuery || undefined);
+      } else {
+        setCurrentPage(1);
+      }
+    }, 500);
+
+    return () => {
+      console.log('[Inventory] SEARCH EFFECT cleanup - clearing timer');
+      clearTimeout(debounceTimer);
+    };
+  }, [searchQuery, currentPage, fetchProducts]);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= (pagination?.totalPages || 1)) {
