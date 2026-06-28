@@ -1,4 +1,20 @@
 -- ==========================================
+-- DROP EXISTING TABLES
+-- ==========================================
+
+DROP TABLE IF EXISTS order_items CASCADE;
+DROP TABLE IF EXISTS orders CASCADE;
+DROP TABLE IF EXISTS cart_items CASCADE;
+DROP TABLE IF EXISTS cart CASCADE;
+DROP TABLE IF EXISTS products CASCADE;
+DROP TABLE IF EXISTS merchant_invitation CASCADE;
+DROP TABLE IF EXISTS merchant_members CASCADE;
+DROP TABLE IF EXISTS customers CASCADE;
+DROP TABLE IF EXISTS category CASCADE;
+DROP TABLE IF EXISTS merchants CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+
+-- ==========================================
 -- 1. INDEPENDENT TABLES (No Foreign Keys)
 -- ==========================================
 
@@ -20,13 +36,23 @@ CREATE TABLE users (
 
 CREATE TABLE merchants (
     id SERIAL,
+    store_type VARCHAR(100) NOT NULL,
     store_name VARCHAR(255) NOT NULL,
+    store_description TEXT,
+    store_address TEXT,
+    store_phone VARCHAR(50),
+    store_email VARCHAR(255),
+    social_media_links JSONB,
     publicity BOOLEAN DEFAULT FALSE,
+    store_status VARCHAR(50) DEFAULT 'active',
+    notification_settings JSONB DEFAULT '{"email_orders": true, "email_low_stock": true, "email_inquiries": false, "sms_urgent": false}'::jsonb,
+    operating_hours JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     
     -- CONSTRAINTS
-    CONSTRAINT pk_merchants PRIMARY KEY (id)
+    CONSTRAINT pk_merchants PRIMARY KEY (id),
+    CONSTRAINT chk_merchants_status CHECK (store_status IN ('active', 'inactive', 'suspended'))
 );
 
 CREATE TABLE category (
@@ -94,8 +120,11 @@ CREATE TABLE products (
     name VARCHAR(255) NOT NULL,
     sku VARCHAR(100) NOT NULL,
     price NUMERIC(12, 2) NOT NULL,
+    wholesale_price NUMERIC(12, 2) NULL,
+    wholesale_count INTEGER NULL,
     cost NUMERIC(12, 2) NOT NULL,
     stock INTEGER NOT NULL DEFAULT 0,
+    low_stock_threshold INTEGER DEFAULT 10,
     status VARCHAR(50) DEFAULT 'active',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -109,7 +138,8 @@ CREATE TABLE products (
         REFERENCES category(id) ON DELETE SET NULL,
     CONSTRAINT chk_products_price CHECK (price >= 0.00),
     CONSTRAINT chk_products_cost CHECK (cost >= 0.00),
-    CONSTRAINT chk_products_stock CHECK (stock >= 0)
+    CONSTRAINT chk_products_stock CHECK (stock >= 0),
+    CONSTRAINT chk_products_low_stock_threshold CHECK (low_stock_threshold >= 0)
 );
 
 -- ==========================================
@@ -149,6 +179,7 @@ CREATE TABLE cart_items (
 
 CREATE TABLE orders (
     id SERIAL,
+    merchant_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,
     amount NUMERIC(12, 2) NOT NULL,
     status VARCHAR(50) DEFAULT 'pending',
@@ -157,6 +188,8 @@ CREATE TABLE orders (
     
     -- CONSTRAINTS
     CONSTRAINT pk_orders PRIMARY KEY (id),
+    CONSTRAINT fk_orders_merchant FOREIGN KEY (merchant_id) 
+        REFERENCES merchants(id) ON DELETE RESTRICT,
     CONSTRAINT fk_orders_user FOREIGN KEY (user_id) 
         REFERENCES users(id) ON DELETE RESTRICT, -- Keeps customer link secure for finance audits
     CONSTRAINT chk_orders_amount CHECK (amount >= 0.00)
