@@ -1,30 +1,13 @@
-import { IsEmail, IsString, MinLength, IsOptional, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsBoolean } from 'class-validator';
 
-export class SignupDto {
-  @IsEmail()
-  email: string;
-
+export class UpdateMerchantDto {
   @IsString()
-  @MinLength(8)
-  password: string;
+  @IsOptional()
+  store_type?: string;
 
   @IsString()
   @IsOptional()
-  first_name?: string;
-
-  @IsString()
-  @IsOptional()
-  last_name?: string;
-
-  @IsString()
-  @IsOptional()
-  phone?: string;
-
-  @IsString()
-  store_type: string;
-
-  @IsString()
-  store_name: string;
+  store_name?: string;
 
   @IsString()
   @IsOptional()
@@ -48,4 +31,8 @@ export class SignupDto {
 
   @IsOptional()
   notification_settings?: Record<string, boolean>;
+
+  @IsString()
+  @IsOptional()
+  operating_hours?: string;
 }

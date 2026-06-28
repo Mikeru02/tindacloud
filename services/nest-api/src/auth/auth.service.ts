@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -8,6 +8,7 @@ import { Merchant } from '../entities/merchant.entity';
 import { MerchantMember } from '../entities/merchant-member.entity';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
+import { UpdatePasswordDto } from './dto/update-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -22,7 +23,21 @@ export class AuthService {
   ) {}
 
   async signup(signupDto: SignupDto) {
-    const { email, password, first_name, last_name, phone, store_name } = signupDto;
+    const { 
+      email, 
+      password, 
+      first_name, 
+      last_name, 
+      phone, 
+      store_type,
+      store_name,
+      store_description,
+      store_address,
+      store_phone,
+      store_email,
+      publicity,
+      notification_settings,
+    } = signupDto;
 
     // Check if user already exists
     const existingUser = await this.userRepository.findOne({ where: { email } });
@@ -47,8 +62,19 @@ export class AuthService {
 
     // Create merchant (store)
     const merchant = this.merchantRepository.create({
+      store_type,
       store_name,
-      publicity: false,
+      store_description,
+      store_address,
+      store_phone,
+      store_email,
+      publicity: publicity ?? false,
+      notification_settings: notification_settings ?? {
+        email_orders: true,
+        email_low_stock: true,
+        email_inquiries: false,
+        sms_urgent: false,
+      },
     });
 
     const savedMerchant = await this.merchantRepository.save(merchant);
@@ -63,7 +89,7 @@ export class AuthService {
     await this.merchantMemberRepository.save(merchantMember);
 
     // Generate JWT token
-    const payload = { sub: savedUser.id, email: savedUser.email };
+    const payload = { sub: savedUser.id, email: savedUser.email, merchantId: savedMerchant.id };
     const access_token = this.jwtService.sign(payload);
 
     return {
@@ -107,7 +133,7 @@ export class AuthService {
     }
 
     // Generate JWT token
-    const payload = { sub: user.id, email: user.email };
+    const payload = { sub: user.id, email: user.email, merchantId: merchantMember.merchant.id };
     const access_token = this.jwtService.sign(payload);
 
     return {
@@ -124,5 +150,36 @@ export class AuthService {
         role: merchantMember.role,
       },
     };
+  }
+
+  async updatePassword(userId: number, updatePasswordDto: UpdatePasswordDto) {
+    const { current_password, new_password } = updatePasswordDto;
+
+    // Find user
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    // Verify current password
+    const isPasswordValid = await bcrypt.compare(current_password, user.password);
+    if (!isPasswordValid) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    // Check if new password is same as current
+    const isSamePassword = await bcrypt.compare(new_password, user.password);
+    if (isSamePassword) {
+      throw new BadRequestException('New password must be different from current password');
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(new_password, 10);
+
+    // Update password
+    user.password = hashedPassword;
+    await this.userRepository.save(user);
+
+    return { message: 'Password updated successfully' };
   }
 }
