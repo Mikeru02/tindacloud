@@ -33,6 +33,12 @@ export class Product {
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   cost: number;
 
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  wholesale_price: number;
+
+  @Column({ default: 0, nullable: true })
+  wholesale_count: number;
+
   @Column({ default: 0 })
   stock: number;
 
