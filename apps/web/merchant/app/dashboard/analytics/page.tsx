@@ -29,6 +29,19 @@ interface AnalyticsData {
   }>;
 }
 
+const formatNumber = (num: number): string => {
+  if (num >= 1000000000) {
+    return (num / 1000000000).toFixed(1) + 'B';
+  }
+  if (num >= 1000000) {
+    return (num / 1000000).toFixed(1) + 'M';
+  }
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1) + 'k';
+  }
+  return num.toFixed(2);
+};
+
 export default function AnalyticsPage() {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -125,7 +138,7 @@ export default function AnalyticsPage() {
                 Revenue This Month
               </h3>
               <p className="text-2xl sm:text-3xl font-bold" style={{ color: '#22c55e' }}>
-                ₱{analytics.revenue.revenue.toFixed(2)}
+                ₱{formatNumber(analytics.revenue.revenue)}
               </p>
               <p className={`text-xs sm:text-sm mt-2 ${parseFloat(analytics.revenue.percentageChange) >= 0 ? 'text-[#16a34a]' : 'text-[#ef4444]'}`}>
                 {parseFloat(analytics.revenue.percentageChange) >= 0 ? '+' : ''}{analytics.revenue.percentageChange}% from last month
@@ -137,7 +150,7 @@ export default function AnalyticsPage() {
                 Average Order Value
               </h3>
               <p className="text-2xl sm:text-3xl font-bold" style={{ color: '#22c55e' }}>
-                ₱{analytics.averageOrderValue.averageOrderValue.toFixed(2)}
+                ₱{formatNumber(analytics.averageOrderValue.averageOrderValue)}
               </p>
               <p className={`text-xs sm:text-sm mt-2 ${parseFloat(analytics.averageOrderValue.percentageChange) >= 0 ? 'text-[#16a34a]' : 'text-[#ef4444]'}`}>
                 {parseFloat(analytics.averageOrderValue.percentageChange) >= 0 ? '+' : ''}{analytics.averageOrderValue.percentageChange}% from last month
@@ -260,7 +273,7 @@ export default function AnalyticsPage() {
                     <div key={item.category}>
                       <div className="flex justify-between mb-2 text-sm sm:text-base">
                         <span style={{ color: '#9ca3af' }}>{item.category}</span>
-                        <span style={{ color: '#22c55e' }}>₱{item.amount.toFixed(2)}</span>
+                        <span style={{ color: '#22c55e' }}>₱{formatNumber(item.amount)}</span>
                       </div>
                       <div className="w-full bg-[#333] rounded-full h-2">
                         <div
@@ -291,7 +304,7 @@ export default function AnalyticsPage() {
                         <p className="font-medium text-sm sm:text-base truncate" style={{ color: '#22c55e' }}>{product.name}</p>
                         <p className="text-xs sm:text-sm" style={{ color: '#9ca3af' }}>{product.sales} sold</p>
                       </div>
-                      <p className="font-medium text-sm sm:text-base ml-2" style={{ color: '#22c55e' }}>₱{product.revenue.toFixed(2)}</p>
+                      <p className="font-medium text-sm sm:text-base ml-2" style={{ color: '#22c55e' }}>₱{formatNumber(product.revenue)}</p>
                     </div>
                   ))
                 ) : (

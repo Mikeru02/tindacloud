@@ -10,6 +10,10 @@ interface Product {
   sku: string;
   price: number;
   cost: number;
+  wholesale_price: number;
+  wholesale_count: number;
+  low_stock_threshold: number;
+  category: { id: number; name: string } | null;
   stock: number;
   status: string;
 }
@@ -42,6 +46,13 @@ export default function InventoryPage() {
   const [selectedReason, setSelectedReason] = useState<'SALE' | 'RESTOCK' | 'DAMAGED' | 'EXPIRED' | 'LOST' | 'ADJUSTMENT' | null>(null);
   const [remarks, setRemarks] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [productToEdit, setProductToEdit] = useState<Product | null>(null);
+  const [editFormData, setEditFormData] = useState<Partial<Product>>({});
+  const [isUpdating, setIsUpdating] = useState(false);
   const ITEMS_PER_PAGE = 10;
   const isFirstRender = useRef(true);
 
@@ -195,6 +206,85 @@ export default function InventoryPage() {
     setShowConfirmDialog(false);
     setSelectedReason(null);
     setRemarks('');
+  };
+
+  const handleDeleteClick = (product: Product) => {
+    setProductToDelete(product);
+    setShowDeleteDialog(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!productToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await apiClient.delete(`/products/${productToDelete.id}`);
+      setShowDeleteDialog(false);
+      setProductToDelete(null);
+      await fetchProducts(currentPage, searchQuery || undefined);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete product');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteDialog(false);
+    setProductToDelete(null);
+  };
+
+  const handleEditClick = (product: Product) => {
+    setProductToEdit(product);
+    setEditFormData({
+      name: product.name,
+      sku: product.sku,
+      price: product.price,
+      cost: product.cost,
+      wholesale_price: product.wholesale_price,
+      wholesale_count: product.wholesale_count,
+      low_stock_threshold: product.low_stock_threshold,
+      category: product.category?.name || '',
+      status: product.status,
+    });
+    setShowEditDialog(true);
+  };
+
+  const handleEditFormChange = (field: keyof Product, value: string | number) => {
+    setEditFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleConfirmEdit = async () => {
+    if (!productToEdit) return;
+
+    setIsUpdating(true);
+    try {
+      await apiClient.put(`/products/${productToEdit.id}`, {
+        name: editFormData.name,
+        sku: editFormData.sku,
+        price: Number(editFormData.price),
+        cost: Number(editFormData.cost),
+        wholesale_price: Number(editFormData.wholesale_price),
+        wholesale_count: Number(editFormData.wholesale_count),
+        low_stock_threshold: Number(editFormData.low_stock_threshold),
+        category: editFormData.category,
+        status: editFormData.status,
+      });
+      setShowEditDialog(false);
+      setProductToEdit(null);
+      setEditFormData({});
+      await fetchProducts(currentPage, searchQuery || undefined);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update product');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleCancelEditDialog = () => {
+    setShowEditDialog(false);
+    setProductToEdit(null);
+    setEditFormData({});
   };
 
   const hasChanges = editedProducts.size > 0;
@@ -435,13 +525,21 @@ export default function InventoryPage() {
                       </td>
                       <td className="p-3 sm:p-4">
                         <div className="flex gap-2">
-                          <button className="p-2 rounded hover:bg-[#444] transition-colors" style={{ color: '#22c55e' }}>
+                          <button 
+                            onClick={() => handleEditClick(product)}
+                            className="p-2 rounded hover:bg-[#444] transition-colors" 
+                            style={{ color: '#22c55e' }}
+                          >
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                             </svg>
                           </button>
-                          <button className="p-2 rounded hover:bg-[#444] transition-colors" style={{ color: '#ef4444' }}>
+                          <button 
+                            onClick={() => handleDeleteClick(product)}
+                            className="p-2 rounded hover:bg-[#444] transition-colors" 
+                            style={{ color: '#ef4444' }}
+                          >
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <polyline points="3 6 5 6 21 6"></polyline>
                               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -507,6 +605,227 @@ export default function InventoryPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* Edit Product Dialog */}
+      {showEditDialog && productToEdit && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#222] rounded-xl border border-[#333] p-4 sm:p-6 max-w-2xl w-full mx-4 relative max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={handleCancelEditDialog}
+              className="absolute top-4 right-4 p-1 rounded hover:bg-[#333] transition-colors"
+              style={{ color: '#9ca3af' }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+            <h2 className="text-xl font-bold mb-4" style={{ color: '#22c55e' }}>
+              Edit Product
+            </h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
+                  Product Name
+                </label>
+                <input
+                  type="text"
+                  value={editFormData.name || ''}
+                  onChange={(e) => handleEditFormChange('name', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-[#1a1a1a] text-[#22c55e] border-2 border-[#333] focus:outline-none focus:border-[#22c55e]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
+                  SKU
+                </label>
+                <input
+                  type="text"
+                  value={editFormData.sku || ''}
+                  onChange={(e) => handleEditFormChange('sku', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-[#1a1a1a] text-[#22c55e] border-2 border-[#333] focus:outline-none focus:border-[#22c55e]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
+                  Category
+                </label>
+                <input
+                  type="text"
+                  value={editFormData.category || ''}
+                  onChange={(e) => handleEditFormChange('category', e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-[#1a1a1a] text-[#22c55e] border-2 border-[#333] focus:outline-none focus:border-[#22c55e]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
+                    Price (₱)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editFormData.price || ''}
+                    onChange={(e) => handleEditFormChange('price', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-[#1a1a1a] text-[#22c55e] border-2 border-[#333] focus:outline-none focus:border-[#22c55e]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
+                    Cost (₱)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editFormData.cost || ''}
+                    onChange={(e) => handleEditFormChange('cost', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-[#1a1a1a] text-[#22c55e] border-2 border-[#333] focus:outline-none focus:border-[#22c55e]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
+                    Wholesale Price (₱)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editFormData.wholesale_price || ''}
+                    onChange={(e) => handleEditFormChange('wholesale_price', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-[#1a1a1a] text-[#22c55e] border-2 border-[#333] focus:outline-none focus:border-[#22c55e]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
+                    Wholesale Count
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editFormData.wholesale_count || ''}
+                    onChange={(e) => handleEditFormChange('wholesale_count', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-[#1a1a1a] text-[#22c55e] border-2 border-[#333] focus:outline-none focus:border-[#22c55e]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
+                    Low Stock Threshold
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editFormData.low_stock_threshold || ''}
+                    onChange={(e) => handleEditFormChange('low_stock_threshold', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-[#1a1a1a] text-[#22c55e] border-2 border-[#333] focus:outline-none focus:border-[#22c55e]"
+                  />
+                </div>
+
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
+                    Status
+                  </label>
+                  <select
+                    value={editFormData.status || ''}
+                    onChange={(e) => handleEditFormChange('status', e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-[#1a1a1a] text-[#22c55e] border-2 border-[#333] focus:outline-none focus:border-[#22c55e]"
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
+                  Current Stock
+                </label>
+                <input
+                  type="number"
+                  value={productToEdit.stock}
+                  disabled
+                  className="w-full px-3 py-2 rounded-lg bg-[#333] text-[#666] border-2 border-[#333] cursor-not-allowed"
+                />
+                <p className="text-xs mt-1" style={{ color: '#666' }}>
+                  Stock cannot be edited here. Use the stock input in the table.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 justify-end mt-6">
+              <button
+                onClick={handleCancelEditDialog}
+                disabled={isUpdating}
+                className="px-4 py-2 rounded-lg border border-[#333] bg-[#222] text-[#9ca3af] hover:bg-[#333] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmEdit}
+                disabled={isUpdating}
+                className="px-4 py-2 rounded-lg bg-[#22c55e] text-[#1a1a1a] hover:bg-[#16a34a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {isUpdating ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteDialog && productToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#222] rounded-xl border border-[#333] p-4 sm:p-6 max-w-md w-full mx-4 relative">
+            <button
+              onClick={handleCancelDelete}
+              className="absolute top-4 right-4 p-1 rounded hover:bg-[#333] transition-colors"
+              style={{ color: '#9ca3af' }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+            <h2 className="text-xl font-bold mb-4" style={{ color: '#22c55e' }}>
+              Delete Product
+            </h2>
+            
+            <div className="mb-6" style={{ color: '#9ca3af' }}>
+              Are you sure you want to delete <span className="font-medium" style={{ color: '#22c55e' }}>{productToDelete.name}</span>? This action cannot be undone.
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handleCancelDelete}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-lg border border-[#333] bg-[#222] text-[#9ca3af] hover:bg-[#333] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {isDeleting ? 'Deleting...' : 'Yes, Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Inventory Adjustment Confirmation Dialog */}

@@ -105,13 +105,16 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   return (
     <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-[#222] border-r border-[#333] min-h-screen flex flex-col transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
       <div className="p-6 border-b border-[#333] flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold" style={{ color: '#22c55e' }}>
-            TindaCloud
-          </h1>
-          <p className="text-sm mt-1" style={{ color: '#9ca3af' }}>
-            Merchant Portal
-          </p>
+        <div className="flex gap-4">
+          {/* <img src="/favicon.ico" alt="TindaCloud" className="w-13 h-13" /> */}
+          <div>
+            <h1 className="text-2xl font-bold" style={{ color: '#22c55e' }}>
+              TindaCloud
+            </h1>
+            <p className="text-sm mt-1" style={{ color: '#9ca3af' }}>
+              Merchant Portal
+            </p>
+          </div>
         </div>
         <button
           onClick={onClose}

@@ -27,6 +27,19 @@ interface Product {
   low_stock_threshold: number;
 }
 
+const formatNumber = (num: number): string => {
+  if (num >= 1000000000) {
+    return (num / 1000000000).toFixed(1) + 'B';
+  }
+  if (num >= 1000000) {
+    return (num / 1000000).toFixed(1) + 'M';
+  }
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1) + 'k';
+  }
+  return num.toFixed(2);
+};
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [totalProducts, setTotalProducts] = useState<number>(0);
@@ -122,7 +135,7 @@ export default function DashboardPage() {
                 Total Sales
               </h3>
               <p className="text-3xl font-bold" style={{ color: '#22c55e' }}>
-                ₱{stats?.totalSales.toFixed(2) || '0.00'}
+                ₱{stats?.totalSales ? formatNumber(stats.totalSales) : '0.00'}
               </p>
               <p className="text-sm mt-2" style={{ color: '#9ca3af' }}>
                 All time
@@ -193,7 +206,7 @@ export default function DashboardPage() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium" style={{ color: '#22c55e' }}>₱{Number(order.amount).toFixed(2)}</p>
+                        <p className="font-medium" style={{ color: '#22c55e' }}>₱{formatNumber(Number(order.amount))}</p>
                         <p className="text-sm" style={{ color: '#9ca3af' }}>{order.status}</p>
                       </div>
                     </div>

@@ -25,6 +25,19 @@ interface PaginatedResponse {
   totalPages: number;
 }
 
+const formatNumber = (num: number): string => {
+  if (num >= 1000000000) {
+    return (num / 1000000000).toFixed(1) + 'B';
+  }
+  if (num >= 1000000) {
+    return (num / 1000000).toFixed(1) + 'M';
+  }
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1) + 'k';
+  }
+  return num.toFixed(2);
+};
+
 export default function OrdersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [orders, setOrders] = useState<Order[]>([]);
@@ -209,7 +222,7 @@ export default function OrdersPage() {
                         <td className="p-3 sm:p-4 font-medium text-sm sm:text-base" style={{ color: '#22c55e' }}>#{order.id}</td>
                         <td className="p-3 sm:p-4 text-sm sm:text-base" style={{ color: '#9ca3af' }}>{getCustomerName(order)}</td>
                         <td className="p-3 sm:p-4 text-sm sm:text-base hidden sm:table-cell" style={{ color: '#9ca3af' }}>{formatDate(order.created_at)}</td>
-                        <td className="p-3 sm:p-4 text-sm sm:text-base" style={{ color: '#22c55e' }}>${Number(order.amount).toFixed(2)}</td>
+                        <td className="p-3 sm:p-4 text-sm sm:text-base" style={{ color: '#22c55e' }}>₱{formatNumber(Number(order.amount))}</td>
                         <td className="p-3 sm:p-4">
                           <span className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
                             {order.status}
