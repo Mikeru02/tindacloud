@@ -10,6 +10,11 @@ interface NavItem {
   icon: React.ReactNode;
 }
 
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
 const navItems: NavItem[] = [
   {
     name: 'Dashboard',
@@ -56,18 +61,6 @@ const navItems: NavItem[] = [
       </svg>
     ),
   },
-  // {
-  //   name: 'Customers',
-  //   href: '/dashboard/customers',
-  //   icon: (
-  //     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-  //       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-  //       <circle cx="9" cy="7" r="4"></circle>
-  //       <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-  //       <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-  //     </svg>
-  //   ),
-  // },
   {
     name: 'Staff',
     href: '/dashboard/staff',
@@ -92,7 +85,7 @@ const navItems: NavItem[] = [
   },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -103,18 +96,36 @@ export default function Sidebar() {
     router.push('/');
   };
 
+  const handleNavClick = () => {
+    if (onClose) {
+      onClose();
+    }
+  };
+
   return (
-    <aside className="w-64 bg-[#222] border-r border-[#333] min-h-screen flex flex-col">
-      <div className="p-6 border-b border-[#333]">
-        <h1 className="text-2xl font-bold" style={{ color: '#22c55e' }}>
-          TindaCloud
-        </h1>
-        <p className="text-sm mt-1" style={{ color: '#9ca3af' }}>
-          Merchant Portal
-        </p>
+    <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-[#222] border-r border-[#333] min-h-screen flex flex-col transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+      <div className="p-6 border-b border-[#333] flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: '#22c55e' }}>
+            TindaCloud
+          </h1>
+          <p className="text-sm mt-1" style={{ color: '#9ca3af' }}>
+            Merchant Portal
+          </p>
+        </div>
+        <button
+          onClick={onClose}
+          className="lg:hidden p-2 rounded-lg hover:bg-[#333] transition-colors"
+          style={{ color: '#9ca3af' }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
       </div>
       
-      <nav className="flex-1 p-4 space-y-2">
+      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         {navItems.map((item) => {
           const isActive = item.href === '/dashboard' 
             ? pathname === '/dashboard' 
@@ -124,6 +135,7 @@ export default function Sidebar() {
             <Link
               key={item.name}
               href={item.href}
+              onClick={handleNavClick}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                 isActive
                   ? 'bg-[#22c55e] text-[#1a1a1a]'
