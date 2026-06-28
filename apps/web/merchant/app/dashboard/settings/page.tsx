@@ -1,11 +1,181 @@
-import React from 'react';
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import apiClient from '../../api/client';
 
 export default function SettingsPage() {
+  const [merchantData, setMerchantData] = useState({
+    store_name: '',
+    store_email: '',
+    store_description: '',
+    store_type: '',
+    store_address: '',
+    store_phone: '',
+    publicity: false,
+    notification_settings: {
+      email_orders: true,
+      email_low_stock: true,
+      email_inquiries: false,
+      sms_urgent: false,
+    },
+  });
+  const [passwordData, setPasswordData] = useState({
+    current_password: '',
+    new_password: '',
+  });
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  useEffect(() => {
+    fetchMerchantData();
+  }, []);
+
+  const fetchMerchantData = async () => {
+    try {
+      const response = await apiClient.get('/merchants/me');
+      setMerchantData(response.data);
+    } catch (error) {
+      console.error('Failed to fetch merchant data:', error);
+      setSaveMessage({ type: 'error', message: 'Failed to load merchant data' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    
+    if (type === 'checkbox') {
+      const checkbox = e.target as HTMLInputElement;
+      if (name.startsWith('notification_')) {
+        const settingName = name.replace('notification_', '');
+        setMerchantData({
+          ...merchantData,
+          notification_settings: {
+            ...merchantData.notification_settings,
+            [settingName]: checkbox.checked,
+          },
+        });
+      } else {
+        setMerchantData({ ...merchantData, [name]: checkbox.checked });
+      }
+    } else {
+      setMerchantData({ ...merchantData, [name]: value });
+    }
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setSaveMessage(null);
+    
+    try {
+      await apiClient.put('/merchants/me', merchantData);
+      setSaveMessage({ type: 'success', message: 'Settings saved successfully' });
+      setTimeout(() => setSaveMessage(null), 3000);
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      setSaveMessage({ type: 'error', message: 'Failed to save settings' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPasswordData({
+      ...passwordData,
+      [e.target.name]: e.target.value,
+    });
+    setPasswordError('');
+    setPasswordSuccess('');
+  };
+
+  const handleUpdatePassword = async () => {
+    if (!passwordData.current_password || !passwordData.new_password) {
+      setPasswordError('Please fill in both password fields');
+      return;
+    }
+
+    if (passwordData.new_password.length < 8) {
+      setPasswordError('New password must be at least 8 characters');
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    setPasswordError('');
+    setPasswordSuccess('');
+    
+    try {
+      await apiClient.put('/auth/password', passwordData);
+      setPasswordSuccess('Password updated successfully');
+      setPasswordData({ current_password: '', new_password: '' });
+      setTimeout(() => setPasswordSuccess(''), 3000);
+    } catch (error: any) {
+      console.error('Failed to update password:', error);
+      setPasswordError(error.response?.data?.message || 'Failed to update password');
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div>
+        <div className="h-10 bg-[#333] rounded w-32 mb-8 animate-pulse"></div>
+        <div className="space-y-6">
+          <div className="bg-[#222] rounded-xl p-6 border border-[#333]">
+            <div className="h-6 bg-[#333] rounded w-48 mb-4 animate-pulse"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="h-10 bg-[#333] rounded animate-pulse"></div>
+              <div className="h-10 bg-[#333] rounded animate-pulse"></div>
+              <div className="h-10 bg-[#333] rounded animate-pulse"></div>
+              <div className="h-10 bg-[#333] rounded animate-pulse"></div>
+              <div className="md:col-span-2 h-20 bg-[#333] rounded animate-pulse"></div>
+              <div className="md:col-span-2 h-24 bg-[#333] rounded animate-pulse"></div>
+            </div>
+          </div>
+          <div className="bg-[#222] rounded-xl p-6 border border-[#333]">
+            <div className="h-6 bg-[#333] rounded w-48 mb-4 animate-pulse"></div>
+            <div className="space-y-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex items-center justify-between py-3 border-b border-[#333] last:border-0">
+                  <div className="h-4 bg-[#333] rounded w-64 animate-pulse"></div>
+                  <div className="h-4 w-4 bg-[#333] rounded animate-pulse"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="bg-[#222] rounded-xl p-6 border border-[#333]">
+            <div className="h-6 bg-[#333] rounded w-48 mb-4 animate-pulse"></div>
+            <div className="space-y-4">
+              <div className="h-10 bg-[#333] rounded animate-pulse"></div>
+              <div className="h-10 bg-[#333] rounded animate-pulse"></div>
+              <div className="h-10 bg-[#333] rounded w-32 animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <h1 className="text-3xl font-bold mb-8" style={{ color: '#22c55e' }}>
         Settings
       </h1>
+      
+      {saveMessage && (
+        <div className={`mb-4 px-4 py-3 rounded-lg ${
+          saveMessage.type === 'success' 
+            ? 'bg-green-500/10 border border-green-500 text-green-500' 
+            : 'bg-red-500/10 border border-red-500 text-red-500'
+        }`}>
+          {saveMessage.message}
+        </div>
+      )}
       
       <div className="space-y-6">
         <div className="bg-[#222] rounded-xl p-6 border border-[#333]">
@@ -19,7 +189,35 @@ export default function SettingsPage() {
               </label>
               <input
                 type="text"
-                defaultValue="My Store"
+                name="store_name"
+                value={merchantData.store_name}
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-lg border-2 bg-[#1a1a1a] text-[#22c55e] placeholder-gray-500 focus:outline-none focus:border-[#22c55e] transition-colors"
+                style={{ borderColor: '#333' }}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
+                Store Type
+              </label>
+              <input
+                type="text"
+                name="store_type"
+                value={merchantData.store_type}
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-lg border-2 bg-[#1a1a1a] text-[#22c55e] placeholder-gray-500 focus:outline-none focus:border-[#22c55e] transition-colors"
+                style={{ borderColor: '#333' }}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
+                Store Phone
+              </label>
+              <input
+                type="tel"
+                name="store_phone"
+                value={merchantData.store_phone}
+                onChange={handleChange}
                 className="w-full px-4 py-3 rounded-lg border-2 bg-[#1a1a1a] text-[#22c55e] placeholder-gray-500 focus:outline-none focus:border-[#22c55e] transition-colors"
                 style={{ borderColor: '#333' }}
               />
@@ -30,7 +228,22 @@ export default function SettingsPage() {
               </label>
               <input
                 type="email"
-                defaultValue="store@example.com"
+                name="store_email"
+                value={merchantData.store_email}
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-lg border-2 bg-[#1a1a1a] text-[#22c55e] placeholder-gray-500 focus:outline-none focus:border-[#22c55e] transition-colors"
+                style={{ borderColor: '#333' }}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
+                Store Address
+              </label>
+              <textarea
+                name="store_address"
+                rows={2}
+                value={merchantData.store_address}
+                onChange={handleChange}
                 className="w-full px-4 py-3 rounded-lg border-2 bg-[#1a1a1a] text-[#22c55e] placeholder-gray-500 focus:outline-none focus:border-[#22c55e] transition-colors"
                 style={{ borderColor: '#333' }}
               />
@@ -40,12 +253,35 @@ export default function SettingsPage() {
                 Store Description
               </label>
               <textarea
+                name="store_description"
                 rows={3}
-                defaultValue="Welcome to our store!"
+                value={merchantData.store_description}
+                onChange={handleChange}
                 className="w-full px-4 py-3 rounded-lg border-2 bg-[#1a1a1a] text-[#22c55e] placeholder-gray-500 focus:outline-none focus:border-[#22c55e] transition-colors"
                 style={{ borderColor: '#333' }}
               />
             </div>
+          </div>
+        </div>
+
+        <div className="bg-[#222] rounded-xl p-6 border border-[#333]">
+          <h3 className="text-xl font-bold mb-4" style={{ color: '#22c55e' }}>
+            Store Visibility
+          </h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between py-3">
+              <span style={{ color: '#9ca3af' }}>Show store to marketplace</span>
+              <input
+                type="checkbox"
+                name="publicity"
+                checked={merchantData.publicity}
+                onChange={handleChange}
+                className="h-4 w-4 rounded border-gray-300 bg-[#1a1a1a] text-[#22c55e] focus:ring-[#22c55e] cursor-pointer"
+              />
+            </div>
+            <p className="text-sm" style={{ color: '#9ca3af' }}>
+              When enabled, your store will be visible to customers browsing the marketplace.
+            </p>
           </div>
         </div>
         
@@ -55,17 +291,19 @@ export default function SettingsPage() {
           </h3>
           <div className="space-y-4">
             {[
-              { label: 'Email notifications for new orders', checked: true },
-              { label: 'Email notifications for low stock', checked: true },
-              { label: 'Email notifications for customer inquiries', checked: false },
-              { label: 'SMS notifications for urgent orders', checked: false },
-            ].map((item, index) => (
-              <div key={index} className="flex items-center justify-between py-3 border-b border-[#333] last:border-0">
+              { label: 'Email notifications for new orders', key: 'email_orders' },
+              { label: 'Email notifications for low stock', key: 'email_low_stock' },
+              { label: 'Email notifications for customer inquiries', key: 'email_inquiries' },
+              { label: 'SMS notifications for urgent orders', key: 'sms_urgent' },
+            ].map((item) => (
+              <div key={item.key} className="flex items-center justify-between py-3 border-b border-[#333] last:border-0">
                 <span style={{ color: '#9ca3af' }}>{item.label}</span>
                 <input
                   type="checkbox"
-                  defaultChecked={item.checked}
-                  className="h-4 w-4 rounded border-gray-300 bg-[#1a1a1a] text-[#22c55e] focus:ring-[#22c55e]"
+                  name={`notification_${item.key}`}
+                  checked={merchantData.notification_settings[item.key] || false}
+                  onChange={handleChange}
+                  className="h-4 w-4 rounded border-gray-300 bg-[#1a1a1a] text-[#22c55e] focus:ring-[#22c55e] cursor-pointer"
                 />
               </div>
             ))}
@@ -77,12 +315,25 @@ export default function SettingsPage() {
             Security
           </h3>
           <div className="space-y-4">
+            {passwordError && (
+              <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-3 rounded-lg">
+                {passwordError}
+              </div>
+            )}
+            {passwordSuccess && (
+              <div className="bg-green-500/10 border border-green-500 text-green-500 px-4 py-3 rounded-lg">
+                {passwordSuccess}
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
                 Current Password
               </label>
               <input
                 type="password"
+                name="current_password"
+                value={passwordData.current_password}
+                onChange={handlePasswordChange}
                 placeholder="••••••••"
                 className="w-full px-4 py-3 rounded-lg border-2 bg-[#1a1a1a] text-[#22c55e] placeholder-gray-500 focus:outline-none focus:border-[#22c55e] transition-colors"
                 style={{ borderColor: '#333' }}
@@ -94,23 +345,38 @@ export default function SettingsPage() {
               </label>
               <input
                 type="password"
+                name="new_password"
+                value={passwordData.new_password}
+                onChange={handlePasswordChange}
                 placeholder="••••••••"
                 className="w-full px-4 py-3 rounded-lg border-2 bg-[#1a1a1a] text-[#22c55e] placeholder-gray-500 focus:outline-none focus:border-[#22c55e] transition-colors"
                 style={{ borderColor: '#333' }}
               />
             </div>
-            <button className="px-6 py-3 rounded-lg font-medium bg-[#22c55e] text-[#1a1a1a] hover:bg-[#16a34a] transition-colors">
-              Update Password
+            <button 
+              onClick={handleUpdatePassword}
+              disabled={isUpdatingPassword}
+              className="px-6 py-3 rounded-lg font-medium bg-[#22c55e] text-[#1a1a1a] hover:bg-[#16a34a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isUpdatingPassword ? 'Updating...' : 'Update Password'}
             </button>
           </div>
         </div>
         
         <div className="flex justify-end gap-4">
-          <button className="px-6 py-3 rounded-lg font-medium bg-[#333] hover:bg-[#444] transition-colors" style={{ color: '#22c55e' }}>
+          <button 
+            onClick={fetchMerchantData}
+            className="px-6 py-3 rounded-lg font-medium bg-[#333] hover:bg-[#444] transition-colors" 
+            style={{ color: '#22c55e' }}
+          >
             Cancel
           </button>
-          <button className="px-6 py-3 rounded-lg font-medium bg-[#22c55e] text-[#1a1a1a] hover:bg-[#16a34a] transition-colors">
-            Save Changes
+          <button 
+            onClick={handleSave}
+            disabled={isSaving}
+            className="px-6 py-3 rounded-lg font-medium bg-[#22c55e] text-[#1a1a1a] hover:bg-[#16a34a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSaving ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </div>

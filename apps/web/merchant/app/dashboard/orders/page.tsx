@@ -1,9 +1,142 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import apiClient from '../../api/client';
+
+interface Order {
+  id: number;
+  user_id: number;
+  amount: number;
+  status: string;
+  created_at: Date;
+  user: {
+    id: number;
+    email: string;
+    first_name: string;
+    last_name: string;
+  };
+}
+
+interface PaginatedResponse {
+  orders: Order[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
 
 export default function OrdersPage() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginatedResponse | null>(null);
+  const ITEMS_PER_PAGE = 10;
+
+  const fetchOrders = async (page: number = 1) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await apiClient.get('/orders', {
+        params: {
+          page,
+          limit: ITEMS_PER_PAGE,
+        },
+      });
+      
+      const data: PaginatedResponse = response.data;
+      setOrders(data.orders);
+      setPagination(data);
+      setCurrentPage(data.page);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load orders');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders(currentPage);
+  }, [currentPage]);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= (pagination?.totalPages || 1)) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return 'bg-green-500/20 text-green-500';
+      case 'processing':
+        return 'bg-blue-500/20 text-blue-500';
+      case 'shipped':
+        return 'bg-purple-500/20 text-purple-500';
+      case 'pending':
+        return 'bg-yellow-500/20 text-yellow-500';
+      case 'cancelled':
+        return 'bg-red-500/20 text-red-500';
+      default:
+        return 'bg-gray-500/20 text-gray-500';
+    }
+  };
+
+  const formatDate = (date: Date) => {
+    return new Date(date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  const getCustomerName = (order: Order) => {
+    if (order.user) {
+      return `${order.user.first_name || ''} ${order.user.last_name || ''}`.trim() || order.user.email;
+    }
+    return 'Unknown';
+  };
+
+  if (loading) {
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-8">
+          <div className="h-8 w-32 bg-[#333] rounded animate-pulse"></div>
+          <div className="h-12 w-64 bg-[#333] rounded animate-pulse"></div>
+        </div>
+        <div className="bg-[#222] rounded-xl border border-[#333] overflow-hidden">
+          <div className="p-4 border-b border-[#333] flex gap-4">
+            <div className="h-4 w-24 bg-[#333] rounded animate-pulse"></div>
+            <div className="h-4 w-32 bg-[#333] rounded animate-pulse"></div>
+            <div className="h-4 w-24 bg-[#333] rounded animate-pulse"></div>
+            <div className="h-4 w-24 bg-[#333] rounded animate-pulse"></div>
+            <div className="h-4 w-24 bg-[#333] rounded animate-pulse"></div>
+            <div className="h-4 w-24 bg-[#333] rounded animate-pulse"></div>
+          </div>
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="p-4 border-b border-[#333] flex gap-4">
+              <div className="h-4 w-20 bg-[#333] rounded animate-pulse"></div>
+              <div className="h-4 w-32 bg-[#333] rounded animate-pulse"></div>
+              <div className="h-4 w-24 bg-[#333] rounded animate-pulse"></div>
+              <div className="h-4 w-20 bg-[#333] rounded animate-pulse"></div>
+              <div className="h-4 w-24 bg-[#333] rounded animate-pulse"></div>
+              <div className="h-8 w-24 bg-[#333] rounded animate-pulse"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-3 rounded-lg">
+        {error}
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -38,51 +171,107 @@ export default function OrdersPage() {
         </div>
       </div>
       
-      <div className="bg-[#222] rounded-xl border border-[#333] overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-[#333]">
-              <th className="text-left p-4 font-medium" style={{ color: '#9ca3af' }}>Order ID</th>
-              <th className="text-left p-4 font-medium" style={{ color: '#9ca3af' }}>Customer</th>
-              <th className="text-left p-4 font-medium" style={{ color: '#9ca3af' }}>Date</th>
-              <th className="text-left p-4 font-medium" style={{ color: '#9ca3af' }}>Amount</th>
-              <th className="text-left p-4 font-medium" style={{ color: '#9ca3af' }}>Status</th>
-              <th className="text-left p-4 font-medium" style={{ color: '#9ca3af' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[
-              { id: '#ORD-001', customer: 'John Doe', date: '2024-01-15', amount: '$125.00', status: 'Completed' },
-              { id: '#ORD-002', customer: 'Jane Smith', date: '2024-01-14', amount: '$89.50', status: 'Processing' },
-              { id: '#ORD-003', customer: 'Bob Johnson', date: '2024-01-14', amount: '$210.00', status: 'Pending' },
-              { id: '#ORD-004', customer: 'Alice Brown', date: '2024-01-13', amount: '$45.00', status: 'Completed' },
-              { id: '#ORD-005', customer: 'Charlie Wilson', date: '2024-01-13', amount: '$156.00', status: 'Shipped' },
-            ].map((order) => (
-              <tr key={order.id} className="border-b border-[#333] hover:bg-[#333] transition-colors">
-                <td className="p-4 font-medium" style={{ color: '#22c55e' }}>{order.id}</td>
-                <td className="p-4" style={{ color: '#9ca3af' }}>{order.customer}</td>
-                <td className="p-4" style={{ color: '#9ca3af' }}>{order.date}</td>
-                <td className="p-4" style={{ color: '#22c55e' }}>{order.amount}</td>
-                <td className="p-4">
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    order.status === 'Completed' ? 'bg-green-500/20 text-green-500' :
-                    order.status === 'Processing' ? 'bg-blue-500/20 text-blue-500' :
-                    order.status === 'Shipped' ? 'bg-purple-500/20 text-purple-500' :
-                    'bg-yellow-500/20 text-yellow-500'
-                  }`}>
-                    {order.status}
-                  </span>
-                </td>
-                <td className="p-4">
-                  <button className="px-4 py-2 rounded-lg text-sm font-medium bg-[#333] hover:bg-[#444] transition-colors" style={{ color: '#22c55e' }}>
-                    View Details
+      {orders.length === 0 ? (
+        <div className="bg-[#222] rounded-xl border border-[#333] p-12 text-center">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="64"
+            height="64"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="mx-auto mb-4"
+            style={{ color: '#333' }}
+          >
+            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <path d="M16 10a4 4 0 0 1-8 0"></path>
+          </svg>
+          <h3 className="text-xl font-semibold mb-2" style={{ color: '#9ca3af' }}>
+            No orders yet
+          </h3>
+          <p className="mb-6" style={{ color: '#666' }}>
+            Orders will appear here once customers start purchasing.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="bg-[#222] rounded-xl border border-[#333] overflow-hidden">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[#333]">
+                  <th className="text-left p-4 font-medium" style={{ color: '#9ca3af' }}>Order ID</th>
+                  <th className="text-left p-4 font-medium" style={{ color: '#9ca3af' }}>Customer</th>
+                  <th className="text-left p-4 font-medium" style={{ color: '#9ca3af' }}>Date</th>
+                  <th className="text-left p-4 font-medium" style={{ color: '#9ca3af' }}>Amount</th>
+                  <th className="text-left p-4 font-medium" style={{ color: '#9ca3af' }}>Status</th>
+                  <th className="text-left p-4 font-medium" style={{ color: '#9ca3af' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.map((order) => (
+                  <tr key={order.id} className="border-b border-[#333] hover:bg-[#333] transition-colors">
+                    <td className="p-4 font-medium" style={{ color: '#22c55e' }}>#{order.id}</td>
+                    <td className="p-4" style={{ color: '#9ca3af' }}>{getCustomerName(order)}</td>
+                    <td className="p-4" style={{ color: '#9ca3af' }}>{formatDate(order.created_at)}</td>
+                    <td className="p-4" style={{ color: '#22c55e' }}>${order.amount.toFixed(2)}</td>
+                    <td className="p-4">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                        {order.status}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <button className="px-4 py-2 rounded-lg text-sm font-medium bg-[#333] hover:bg-[#444] transition-colors" style={{ color: '#22c55e' }}>
+                        View Details
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          
+          {pagination && pagination.totalPages > 1 && (
+            <div className="mt-6 flex items-center justify-between">
+              <div className="text-sm" style={{ color: '#9ca3af' }}>
+                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, pagination.total)} of {pagination.total} orders
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 rounded-lg border border-[#333] bg-[#222] text-[#9ca3af] hover:bg-[#333] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Previous
+                </button>
+                {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => handlePageChange(page)}
+                    className={`px-4 py-2 rounded-lg border transition-colors ${
+                      currentPage === page
+                        ? 'bg-[#22c55e] text-[#1a1a1a] border-[#22c55e]'
+                        : 'bg-[#222] text-[#9ca3af] border-[#333] hover:bg-[#333]'
+                    }`}
+                  >
+                    {page}
                   </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                ))}
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === pagination.totalPages}
+                  className="px-4 py-2 rounded-lg border border-[#333] bg-[#222] text-[#9ca3af] hover:bg-[#333] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

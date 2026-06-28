@@ -1,18 +1,22 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import apiClient from './api/client';
 import Input from './components/Input';
 import Button from './components/Button';
 import AuthForm from './components/AuthForm';
 import Link from 'next/link';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const isFormValid = formData.email !== '' && 
                       formData.password !== '' && 
@@ -58,13 +62,28 @@ export default function LoginPage() {
     if (!validateForm()) return;
     
     setIsLoading(true);
+    setApiError(null);
     
-    // Simulate API call
-    setTimeout(() => {
-      console.log('Login attempt:', formData);
+    try {
+      const response = await apiClient.post('/auth/login', {
+        email: formData.email,
+        password: formData.password,
+      });
+      
+      const data = response.data;
+      
+      // Save JWT token to localStorage
+      localStorage.setItem('access_token', data.access_token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('merchant', JSON.stringify(data.merchant));
+      
+      // Redirect to dashboard
+      router.push('/dashboard');
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : 'Login failed. Please try again.');
+    } finally {
       setIsLoading(false);
-      // Add your actual login logic here
-    }, 1000);
+    }
   };
 
   return (
@@ -81,6 +100,11 @@ export default function LoginPage() {
       }
     >
       <form onSubmit={handleSubmit} className="space-y-6">
+        {apiError && (
+          <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-3 rounded-lg">
+            {apiError}
+          </div>
+        )}
         <Input
           label="Email"
           type="email"

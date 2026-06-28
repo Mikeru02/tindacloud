@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 interface NavItem {
   name: string;
@@ -56,18 +56,18 @@ const navItems: NavItem[] = [
       </svg>
     ),
   },
-  {
-    name: 'Customers',
-    href: '/dashboard/customers',
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-        <circle cx="9" cy="7" r="4"></circle>
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-      </svg>
-    ),
-  },
+  // {
+  //   name: 'Customers',
+  //   href: '/dashboard/customers',
+  //   icon: (
+  //     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  //       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+  //       <circle cx="9" cy="7" r="4"></circle>
+  //       <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+  //       <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+  //     </svg>
+  //   ),
+  // },
   {
     name: 'Staff',
     href: '/dashboard/staff',
@@ -94,6 +94,14 @@ const navItems: NavItem[] = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('merchant');
+    router.push('/');
+  };
 
   return (
     <aside className="w-64 bg-[#222] border-r border-[#333] min-h-screen flex flex-col">
@@ -130,9 +138,9 @@ export default function Sidebar() {
       </nav>
       
       <div className="p-4 border-t border-[#333]">
-        <Link
-          href="/"
-          className="flex items-center gap-3 px-4 py-3 rounded-lg text-[#ef4444] hover:bg-[#ef4444]/10 hover:text-[#ef4444] transition-colors"
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 px-4 py-3 rounded-lg text-[#ef4444] hover:bg-[#ef4444]/10 hover:text-[#ef4444] transition-colors w-full"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -140,7 +148,7 @@ export default function Sidebar() {
             <line x1="21" y1="12" x2="9" y2="12"></line>
           </svg>
           <span className="font-medium">Sign Out</span>
-        </Link>
+        </button>
       </div>
     </aside>
   );
