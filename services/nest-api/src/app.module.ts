@@ -9,6 +9,7 @@ import { OrdersModule } from './orders/orders.module';
 import { MerchantMembersModule } from './merchant-members/merchant-members.module';
 import { MerchantsModule } from './merchants/merchants.module';
 import { CategoriesModule } from './categories/categories.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { CategoriesModule } from './categories/categories.module';
     MerchantMembersModule,
     MerchantsModule,
     CategoriesModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

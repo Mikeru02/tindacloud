@@ -6,6 +6,7 @@ import { Merchant } from '../entities/merchant.entity';
 import { MerchantMember } from '../entities/merchant-member.entity';
 import { Product } from '../entities/product.entity';
 import { Order } from '../entities/order.entity';
+import { OrderItem } from '../entities/order-item.entity';
 import { Category } from '../entities/category.entity';
 
 @Module({
@@ -19,12 +20,12 @@ import { Category } from '../entities/category.entity';
         username: process.env.DB_USER || 'postgres',
         password: process.env.DB_PASSWORD || 'postgres',
         database: process.env.DB_NAME || 'tindacloud',
-        entities: [User, Merchant, MerchantMember, Product, Order, Category],
+        entities: [User, Merchant, MerchantMember, Product, Order, OrderItem, Category],
         synchronize: false,
         logging: true,
       }),
     }),
-    TypeOrmModule.forFeature([User, Merchant, MerchantMember, Product, Order, Category]),
+    TypeOrmModule.forFeature([User, Merchant, MerchantMember, Product, Order, OrderItem, Category]),
   ],
   exports: [TypeOrmModule],
 })
