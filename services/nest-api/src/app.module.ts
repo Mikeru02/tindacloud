@@ -10,6 +10,7 @@ import { MerchantMembersModule } from './merchant-members/merchant-members.modul
 import { MerchantsModule } from './merchants/merchants.module';
 import { CategoriesModule } from './categories/categories.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { InventoryModule } from './inventory/inventory.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
     MerchantsModule,
     CategoriesModule,
     AnalyticsModule,
+    InventoryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

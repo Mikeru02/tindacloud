@@ -27,6 +27,9 @@ export class Order {
   @Column({ default: 'pending' })
   status: string;
 
+  @Column({ default: 'POS' })
+  source: string;
+
   @Column({ type: 'timestamp with time zone', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
 
