@@ -2,6 +2,7 @@
 -- DROP EXISTING TABLES
 -- ==========================================
 
+DROP TABLE IF EXISTS inventory_movements CASCADE;
 DROP TABLE IF EXISTS order_items CASCADE;
 DROP TABLE IF EXISTS orders CASCADE;
 DROP TABLE IF EXISTS cart_items CASCADE;
@@ -115,6 +116,7 @@ CREATE TABLE merchant_invitation (
 
 CREATE TABLE products (
     id SERIAL,
+    image_url VARCHAR(255) NULL,
     merchant_id INTEGER NOT NULL,
     category_id INTEGER,
     name VARCHAR(255) NOT NULL,
@@ -131,9 +133,9 @@ CREATE TABLE products (
     
     -- CONSTRAINTS
     CONSTRAINT pk_products PRIMARY KEY (id),
-    CONSTRAINT uq_products_sku UNIQUE (sku),
+    CONSTRAINT uq_products_merchant_sku UNIQUE (merchant_id, sku),
     CONSTRAINT fk_products_merchant FOREIGN KEY (merchant_id) 
-        REFERENCES merchants(id) ON DELETE RESTRICT, -- Prevents deleting store if inventory exists
+        REFERENCES merchants(id) ON DELETE RESTRICT,
     CONSTRAINT fk_products_category FOREIGN KEY (category_id) 
         REFERENCES category(id) ON DELETE SET NULL,
     CONSTRAINT chk_products_price CHECK (price >= 0.00),
@@ -141,6 +143,7 @@ CREATE TABLE products (
     CONSTRAINT chk_products_stock CHECK (stock >= 0),
     CONSTRAINT chk_products_low_stock_threshold CHECK (low_stock_threshold >= 0)
 );
+
 
 -- ==========================================
 -- 4. ACTIVE SHOPPING CARTS
@@ -165,7 +168,7 @@ CREATE TABLE cart_items (
     
     -- CONSTRAINTS
     CONSTRAINT pk_cart_items PRIMARY KEY (id),
-    CONSTRAINT uq_cart_product UNIQUE (cart_id, product_id), -- Keeps unique item lines per cart
+    CONSTRAINT uq_cart_product UNIQUE (cart_id, product_id),
     CONSTRAINT fk_cart_items_cart FOREIGN KEY (cart_id) 
         REFERENCES cart(id) ON DELETE CASCADE,
     CONSTRAINT fk_cart_items_product FOREIGN KEY (product_id) 
@@ -183,6 +186,7 @@ CREATE TABLE orders (
     user_id INTEGER NOT NULL,
     amount NUMERIC(12, 2) NOT NULL,
     status VARCHAR(50) DEFAULT 'pending',
+    source VARCHAR(50) DEFAULT 'POS', -- Integrated from migration
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     
@@ -191,8 +195,9 @@ CREATE TABLE orders (
     CONSTRAINT fk_orders_merchant FOREIGN KEY (merchant_id) 
         REFERENCES merchants(id) ON DELETE RESTRICT,
     CONSTRAINT fk_orders_user FOREIGN KEY (user_id) 
-        REFERENCES users(id) ON DELETE RESTRICT, -- Keeps customer link secure for finance audits
-    CONSTRAINT chk_orders_amount CHECK (amount >= 0.00)
+        REFERENCES users(id) ON DELETE RESTRICT,
+    CONSTRAINT chk_orders_amount CHECK (amount >= 0.00),
+    CONSTRAINT chk_orders_source CHECK (source IN ('POS', 'INVENTORY', 'PURCHASE', 'SYSTEM')) -- Integrated from migration
 );
 
 CREATE TABLE order_items (
@@ -200,14 +205,54 @@ CREATE TABLE order_items (
     order_id INTEGER NOT NULL,
     product_id INTEGER NOT NULL,
     quantity INTEGER NOT NULL,
-    price NUMERIC(12, 2) NOT NULL, -- Point-of-sale historical snapshot
+    price NUMERIC(12, 2) NOT NULL,
     
     -- CONSTRAINTS
     CONSTRAINT pk_order_items PRIMARY KEY (id),
     CONSTRAINT fk_order_items_order FOREIGN KEY (order_id) 
         REFERENCES orders(id) ON DELETE CASCADE,
     CONSTRAINT fk_order_items_product FOREIGN KEY (product_id) 
-        REFERENCES products(id) ON DELETE RESTRICT, -- Preserves purchase logs even if items go out of stock
+        REFERENCES products(id) ON DELETE RESTRICT,
     CONSTRAINT chk_order_items_qty CHECK (quantity > 0),
     CONSTRAINT chk_order_items_price CHECK (price >= 0.00)
 );
+
+-- ==========================================
+-- 6. INVENTORY MOVEMENTS LOGS (Integrated Table)
+-- ==========================================
+
+CREATE TABLE inventory_movements (
+    id SERIAL,
+    merchant_id INTEGER NOT NULL,
+    product_id INTEGER NOT NULL,
+    quantity_before INTEGER NOT NULL,
+    quantity_after INTEGER NOT NULL,
+    quantity_difference INTEGER NOT NULL,
+    movement_type VARCHAR(50) NOT NULL,
+    reference_type VARCHAR(50) NOT NULL,
+    reference_id INTEGER,
+    remarks TEXT,
+    created_by INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    -- CONSTRAINTS
+    CONSTRAINT pk_inventory_movements PRIMARY KEY (id),
+    CONSTRAINT fk_inventory_movements_merchant FOREIGN KEY (merchant_id) 
+        REFERENCES merchants(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_inventory_movements_product FOREIGN KEY (product_id) 
+        REFERENCES products(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_inventory_movements_user FOREIGN KEY (created_by) 
+        REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT chk_inventory_movements_type CHECK (movement_type IN ('SALE', 'RESTOCK', 'DAMAGED', 'EXPIRED', 'LOST', 'ADJUSTMENT')),
+    CONSTRAINT chk_inventory_movements_reference_type CHECK (reference_type IN ('POS', 'INVENTORY', 'PURCHASE', 'SYSTEM'))
+);
+
+-- ==========================================
+-- 7. PERFORMANCE INDEXES
+-- ==========================================
+
+CREATE INDEX IF NOT EXISTS idx_inventory_movements_merchant ON inventory_movements(merchant_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_movements_product ON inventory_movements(product_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_movements_type ON inventory_movements(movement_type);
+CREATE INDEX IF NOT EXISTS idx_inventory_movements_created_at ON inventory_movements(created_at);

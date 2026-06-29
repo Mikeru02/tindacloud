@@ -116,6 +116,7 @@ CREATE TABLE merchant_invitation (
 
 CREATE TABLE products (
     id SERIAL,
+    image_url VARCHAR(255) NULL,
     merchant_id INTEGER NOT NULL,
     category_id INTEGER,
     name VARCHAR(255) NOT NULL,
