@@ -24,6 +24,16 @@ import { InventoryMovement } from '../entities/inventory-movement.entity';
         entities: [User, Merchant, MerchantMember, Product, Order, OrderItem, Category, InventoryMovement],
         synchronize: false,
         logging: true,
+
+        ssl: {
+          rejectUnauthorized: false,
+        },
+
+        extra: {
+          ssl: {
+            rejectUnauthorized: false,
+          },
+        },
       }),
     }),
     TypeOrmModule.forFeature([User, Merchant, MerchantMember, Product, Order, OrderItem, Category, InventoryMovement]),
