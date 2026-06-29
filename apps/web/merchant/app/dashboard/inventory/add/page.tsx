@@ -20,10 +20,19 @@ export default function AddProductPage() {
     wholesale_price: '',
     wholesale_count: '',
     category_id: '',
+    category_name: '',
     status: 'active',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const normalizeCategoryName = (category: string | null | undefined): string => {
+    if (!category) return '';
+    // Convert to lowercase and replace spaces with hyphens for database storage
+    return category
+      .toLowerCase()
+      .replace(/\s+/g, '-');
+  };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -86,6 +95,7 @@ export default function AddProductPage() {
         ...(formData.wholesale_price && { wholesale_price: parseFloat(formData.wholesale_price) }),
         ...(formData.wholesale_count && { wholesale_count: parseInt(formData.wholesale_count) }),
         ...(formData.category_id && { category_id: parseInt(formData.category_id) }),
+        ...(formData.category_name && { category_name: normalizeCategoryName(formData.category_name) }),
       };
 
       await apiClient.post('/products', payload);

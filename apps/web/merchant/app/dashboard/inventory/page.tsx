@@ -146,6 +146,22 @@ export default function InventoryPage() {
     return 'In Stock';
   };
 
+  const sanitizeCategoryName = (category: string | null | undefined): string => {
+    if (!category) return '';
+    // Replace hyphens with spaces and convert to title case
+    return category
+      .replace(/-/g, ' ')
+      .replace(/\b\w/g, char => char.toUpperCase());
+  };
+
+  const normalizeCategoryName = (category: string | null | undefined): string => {
+    if (!category) return '';
+    // Convert to lowercase and replace spaces with hyphens for database storage
+    return category
+      .toLowerCase()
+      .replace(/\s+/g, '-');
+  };
+
   const handleStockChange = (productId: number, newStock: string) => {
     const stockValue = parseInt(newStock);
     if (isNaN(stockValue) || stockValue < 0) return;
@@ -244,7 +260,7 @@ export default function InventoryPage() {
       wholesale_price: product.wholesale_price,
       wholesale_count: product.wholesale_count,
       low_stock_threshold: product.low_stock_threshold,
-      category: product.category?.name || '',
+      category: sanitizeCategoryName(product.category?.name || ''),
       status: product.status,
     });
     setShowEditDialog(true);
@@ -267,7 +283,7 @@ export default function InventoryPage() {
         wholesale_price: Number(editFormData.wholesale_price),
         wholesale_count: Number(editFormData.wholesale_count),
         low_stock_threshold: Number(editFormData.low_stock_threshold),
-        category: editFormData.category,
+        category: normalizeCategoryName(editFormData.category),
         status: editFormData.status,
       });
       setShowEditDialog(false);

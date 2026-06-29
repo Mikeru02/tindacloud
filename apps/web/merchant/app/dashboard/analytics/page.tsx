@@ -42,6 +42,14 @@ const formatNumber = (num: number): string => {
   return num.toFixed(2);
 };
 
+const sanitizeCategoryName = (category: string | null | undefined): string => {
+  if (!category) return '';
+  // Replace hyphens with spaces and convert to title case
+  return category
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, char => char.toUpperCase());
+};
+
 export default function AnalyticsPage() {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -272,7 +280,7 @@ export default function AnalyticsPage() {
                   analytics.salesByCategory.map((item) => (
                     <div key={item.category}>
                       <div className="flex justify-between mb-2 text-sm sm:text-base">
-                        <span style={{ color: '#9ca3af' }}>{item.category}</span>
+                        <span style={{ color: '#9ca3af' }}>{sanitizeCategoryName(item.category)}</span>
                         <span style={{ color: '#22c55e' }}>₱{formatNumber(item.amount)}</span>
                       </div>
                       <div className="w-full bg-[#333] rounded-full h-2">
