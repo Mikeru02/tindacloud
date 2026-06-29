@@ -140,7 +140,13 @@ export default function AnalyticsPage() {
         </>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          {!analytics ? (
+            <div className="bg-[#222] rounded-xl p-4 sm:p-6 border border-[#333]">
+              <p style={{ color: '#666' }}>No analytics data available</p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
             <div className="bg-[#222] rounded-xl p-4 sm:p-6 border border-[#333]">
               <h3 className="text-base sm:text-lg font-medium mb-2" style={{ color: '#9ca3af' }}>
                 Revenue This Month
@@ -324,6 +330,8 @@ export default function AnalyticsPage() {
               </div>
             </div>
           </div>
+            </>
+          )}
         </>
       )}
     </div>
