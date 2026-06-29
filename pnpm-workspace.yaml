@@ -1,0 +1,10 @@
+packages:
+  - 'apps/web/*'
+  - 'apps/mobile/*'
+  - 'services/*'
+  - 'packages/*'
+allowBuilds:
+  bcrypt: true
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
