@@ -122,6 +122,7 @@ export class AnalyticsService {
   async getDailySalesLast7Days(merchantId: number) {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
 
     const dailySales = await this.ordersRepository
       .createQueryBuilder('order')
@@ -137,12 +138,13 @@ export class AnalyticsService {
     for (let i = 6; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
+      date.setHours(0, 0, 0, 0);
+      const dateStr = date.toLocaleDateString('en-CA'); // en-CA gives YYYY-MM-DD format
       result[dateStr] = 0;
     }
 
     dailySales.forEach((sale) => {
-      const dateStr = sale.date.toISOString().split('T')[0];
+      const dateStr = sale.date.toLocaleDateString('en-CA');
       if (result.hasOwnProperty(dateStr)) {
         result[dateStr] = parseFloat(sale.total);
       }
