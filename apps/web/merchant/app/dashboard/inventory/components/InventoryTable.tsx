@@ -33,18 +33,48 @@ export default function InventoryTable({
             const edit = editedProducts.get(product.id);
             const isEdited = !!edit;
             return (
-              <tr 
-                key={product.id} 
+              <tr
+                key={product.id}
                 className="border-b border-[#333] hover:bg-[#333] transition-colors"
-                style={{ 
-                  backgroundColor: (isEdited ? edit.newStock : product.stock) === 0 
-                    ? 'rgba(239, 68, 68, 0.1)' 
-                    : (isEdited ? edit.newStock : product.stock) < 10 
-                      ? 'rgba(234, 179, 8, 0.1)' 
-                      : 'transparent' 
+                style={{
+                  backgroundColor: (isEdited ? edit.newStock : product.stock) === 0
+                    ? 'rgba(239, 68, 68, 0.1)'
+                    : (isEdited ? edit.newStock : product.stock) < 10
+                      ? 'rgba(234, 179, 8, 0.1)'
+                      : 'transparent'
                 }}
               >
-                <td className="p-3 sm:p-4 font-medium text-sm sm:text-base" style={{ color: '#22c55e' }}>{product.name}</td>
+                <td className="p-3 sm:p-4">
+                  <div className="flex items-center gap-3">
+                    {product.image_url ? (
+                      <img
+                        src={product.image_url}
+                        alt={product.name}
+                        className="w-12 h-12 rounded-lg object-cover border border-[#333]"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg bg-[#333] border border-[#333] flex items-center justify-center">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          style={{ color: '#666' }}
+                        >
+                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                          <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                          <polyline points="21 15 16 10 5 21"></polyline>
+                        </svg>
+                      </div>
+                    )}
+                    <span className="font-medium text-sm sm:text-base" style={{ color: '#22c55e' }}>{product.name}</span>
+                  </div>
+                </td>
                 <td className="p-3 sm:p-4 text-sm sm:text-base hidden sm:table-cell" style={{ color: '#9ca3af' }}>{product.sku}</td>
                 <td className="p-3 sm:p-4">
                   <input

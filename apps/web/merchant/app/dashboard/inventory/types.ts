@@ -10,6 +10,7 @@ export interface Product {
   category: { id: number; name: string } | null;
   stock: number;
   status: string;
+  image_url?: string;
 }
 
 export interface ProductEdit {
@@ -37,6 +38,7 @@ export interface EditProductForm {
   wholesale_count: number;
   low_stock_threshold: number;
   status: string;
+  image_url?: string;
 }
 
 export type InventoryAdjustmentReason =

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '../../../api/client';
 import Input from '../../../components/Input';
@@ -9,6 +9,11 @@ export default function AddProductPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [showCamera, setShowCamera] = useState(false);
+  const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -84,21 +89,36 @@ export default function AddProductPage() {
     setLoading(true);
 
     try {
-      const payload = {
-        name: formData.name,
-        sku: formData.sku,
-        price: parseFloat(formData.price),
-        cost: parseFloat(formData.cost),
-        stock: parseInt(formData.stock),
-        low_stock_threshold: parseInt(formData.low_stock_threshold),
-        status: formData.status,
-        ...(formData.wholesale_price && { wholesale_price: parseFloat(formData.wholesale_price) }),
-        ...(formData.wholesale_count && { wholesale_count: parseInt(formData.wholesale_count) }),
-        ...(formData.category_id && { category_id: parseInt(formData.category_id) }),
-        ...(formData.category_name && { category_name: normalizeCategoryName(formData.category_name) }),
-      };
+      const formDataToSend = new FormData();
+      formDataToSend.append('name', formData.name);
+      formDataToSend.append('sku', formData.sku);
+      formDataToSend.append('price', formData.price);
+      formDataToSend.append('cost', formData.cost);
+      formDataToSend.append('stock', formData.stock);
+      formDataToSend.append('low_stock_threshold', formData.low_stock_threshold);
+      formDataToSend.append('status', formData.status);
 
-      await apiClient.post('/products', payload);
+      if (formData.wholesale_price) {
+        formDataToSend.append('wholesale_price', formData.wholesale_price);
+      }
+      if (formData.wholesale_count) {
+        formDataToSend.append('wholesale_count', formData.wholesale_count);
+      }
+      if (formData.category_id) {
+        formDataToSend.append('category_id', formData.category_id);
+      }
+      if (formData.category_name) {
+        formDataToSend.append('category_name', normalizeCategoryName(formData.category_name));
+      }
+      if (imageFile) {
+        formDataToSend.append('image', imageFile);
+      }
+
+      await apiClient.post('/products', formDataToSend, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
       router.push('/dashboard/inventory');
     } catch (err: any) {
       if (err.response?.data?.message) {
@@ -119,6 +139,95 @@ export default function AddProductPage() {
       setErrors((prev) => ({ ...prev, [field]: '' }));
     }
   };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+  };
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment' } 
+      });
+      setVideoStream(stream);
+      setShowCamera(true);
+    } catch (err) {
+      console.error('Error accessing camera:', err);
+      setError('Unable to access camera. Please check permissions.');
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoStream) {
+      videoStream.getTracks().forEach(track => track.stop());
+      setVideoStream(null);
+    }
+    setShowCamera(false);
+  };
+
+  const capturePhoto = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    
+    // Check if video has valid dimensions and is ready
+    if (video.videoWidth > 0 && video.videoHeight > 0 && video.readyState >= 2) {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0);
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const file = new File([blob], 'camera-photo.jpg', { type: 'image/jpeg' });
+            setImageFile(file);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+            setImagePreview(dataUrl);
+            stopCamera();
+          }
+        }, 'image/jpeg', 0.9);
+      }
+    }
+  };
+
+  // Attach stream to video element when both are available
+  useEffect(() => {
+    if (showCamera && videoStream && videoRef.current) {
+      const video = videoRef.current;
+      video.srcObject = videoStream;
+      
+      const playVideo = async () => {
+        try {
+          await video.play();
+        } catch (err) {
+          console.error('Error playing video:', err);
+        }
+      };
+      
+      playVideo();
+    }
+  }, [showCamera, videoStream]);
+
+  useEffect(() => {
+    return () => {
+      if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [videoStream]);
 
   return (
     <div>
@@ -150,6 +259,116 @@ export default function AddProductPage() {
 
       <form onSubmit={handleSubmit} className="bg-[#222] rounded-xl border border-[#333] p-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium mb-2" style={{ color: '#22c55e' }}>
+              Product Image (Optional)
+            </label>
+            {showCamera ? (
+              <div className="relative">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  onLoadedMetadata={() => videoRef.current?.play()}
+                  className="w-64 h-64 object-cover rounded-lg border-2 border-[#333] mx-auto"
+                />
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={capturePhoto}
+                    className="bg-[#22c55e] text-white px-4 py-2 rounded-lg hover:bg-[#16a34a] transition-colors"
+                  >
+                    Capture
+                  </button>
+                  <button
+                    type="button"
+                    onClick={stopCamera}
+                    className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : imagePreview ? (
+              <div className="relative">
+                <img
+                  src={imagePreview}
+                  alt="Product preview"
+                  className="w-64 h-64 object-cover rounded-lg border-2 border-[#333] mx-auto"
+                />
+                <button
+                  type="button"
+                  onClick={handleRemoveImage}
+                  className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="border-2 border-dashed border-[#333] rounded-lg p-6 text-center hover:border-[#22c55e] transition-colors">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                    id="image-upload"
+                  />
+                  <label htmlFor="image-upload" className="cursor-pointer block">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="32"
+                      height="32"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="mx-auto mb-2"
+                      style={{ color: '#666' }}
+                    >
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                      <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                      <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                    <p style={{ color: '#666' }}>Upload from device</p>
+                    <p className="text-xs mt-1" style={{ color: '#444' }}>
+                      PNG, JPG, GIF up to 10MB
+                    </p>
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  onClick={startCamera}
+                  className="border-2 border-dashed border-[#333] rounded-lg p-6 text-center hover:border-[#22c55e] transition-colors"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="32"
+                    height="32"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="mx-auto mb-2"
+                    style={{ color: '#666' }}
+                  >
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                    <circle cx="12" cy="13" r="4"></circle>
+                  </svg>
+                  <p style={{ color: '#666' }}>Take photo with camera</p>
+                </button>
+              </div>
+            )}
+          </div>
+
           <Input
             label="Product Name *"
             placeholder="Enter product name"

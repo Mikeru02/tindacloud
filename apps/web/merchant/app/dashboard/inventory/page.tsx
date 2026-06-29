@@ -251,21 +251,30 @@ export default function InventoryPage() {
     setEditFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleConfirmEdit = async () => {
+  const handleConfirmEdit = async (imageFile?: File) => {
     if (!productToEdit) return;
 
     setIsUpdatingProduct(true);
     try {
-      await apiClient.put(`/products/${productToEdit.id}`, {
-        name: editFormData.name,
-        sku: editFormData.sku,
-        price: Number(editFormData.price),
-        cost: Number(editFormData.cost),
-        wholesale_price: Number(editFormData.wholesale_price),
-        wholesale_count: Number(editFormData.wholesale_count),
-        low_stock_threshold: Number(editFormData.low_stock_threshold),
-        category: normalizeCategoryName(editFormData.category),
-        status: editFormData.status,
+      const formDataToSend = new FormData();
+      formDataToSend.append('name', editFormData.name);
+      formDataToSend.append('sku', editFormData.sku);
+      formDataToSend.append('price', String(editFormData.price));
+      formDataToSend.append('cost', String(editFormData.cost));
+      formDataToSend.append('wholesale_price', String(editFormData.wholesale_price));
+      formDataToSend.append('wholesale_count', String(editFormData.wholesale_count));
+      formDataToSend.append('low_stock_threshold', String(editFormData.low_stock_threshold));
+      formDataToSend.append('category', normalizeCategoryName(editFormData.category));
+      formDataToSend.append('status', editFormData.status);
+
+      if (imageFile) {
+        formDataToSend.append('image', imageFile);
+      }
+
+      await apiClient.put(`/products/${productToEdit.id}`, formDataToSend, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
       setShowEditDialog(false);
       setProductToEdit(null);
