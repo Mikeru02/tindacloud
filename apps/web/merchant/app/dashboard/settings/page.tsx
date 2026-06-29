@@ -296,7 +296,7 @@ export default function SettingsPage() {
                     <input
                       type="checkbox"
                       name={`notification_${item.key}`}
-                      checked={merchantData.notification_settings[item.key] || false}
+                      checked={merchantData.notification_settings[item.key as keyof typeof merchantData.notification_settings] || false}
                       onChange={handleChange}
                       className="h-4 w-4 rounded border-gray-300 bg-[#1a1a1a] text-[#22c55e] focus:ring-[#22c55e] cursor-pointer"
                     />
