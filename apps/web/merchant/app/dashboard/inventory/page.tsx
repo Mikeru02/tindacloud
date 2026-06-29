@@ -1,63 +1,54 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '../../api/client';
+import { Product, ProductEdit, PaginatedResponse, EditProductForm, InventoryAdjustmentReason } from './types';
+import InventoryHeader from './components/InventoryHeader';
+import InventoryTable from './components/InventoryTable';
+import InventoryPagination from './components/InventoryPagination';
+import InventorySkeleton from './components/InventorySkeleton';
+import EditProductDialog from './components/EditProductDialog';
+import DeleteProductDialog from './components/DeleteProductDialog';
+import InventoryAdjustmentDialog from './components/InventoryAdjustmentDialog';
 
-interface Product {
-  id: number;
-  name: string;
-  sku: string;
-  price: number;
-  cost: number;
-  wholesale_price: number;
-  wholesale_count: number;
-  low_stock_threshold: number;
-  category: { id: number; name: string } | null;
-  stock: number;
-  status: string;
-}
-
-interface ProductEdit {
-  id: number;
-  name: string;
-  newStock: number;
-  originalStock: number;
-}
-
-interface PaginatedResponse {
-  products: Product[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
+const ITEMS_PER_PAGE = 10;
 
 export default function InventoryPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isFetchingProducts, setIsFetchingProducts] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginatedResponse | null>(null);
   const [editedProducts, setEditedProducts] = useState<Map<number, ProductEdit>>(new Map());
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [selectedReason, setSelectedReason] = useState<'SALE' | 'RESTOCK' | 'DAMAGED' | 'EXPIRED' | 'LOST' | 'ADJUSTMENT' | null>(null);
+  const [selectedReason, setSelectedReason] = useState<InventoryAdjustmentReason | null>(null);
   const [remarks, setRemarks] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSavingInventory, setIsSavingInventory] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeletingProduct, setIsDeletingProduct] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [productToEdit, setProductToEdit] = useState<Product | null>(null);
-  const [editFormData, setEditFormData] = useState<Partial<Product>>({});
-  const [isUpdating, setIsUpdating] = useState(false);
-  const ITEMS_PER_PAGE = 10;
-  const isFirstRender = useRef(true);
+  const [editFormData, setEditFormData] = useState<EditProductForm>({
+    name: '',
+    sku: '',
+    category: '',
+    price: 0,
+    cost: 0,
+    wholesale_price: 0,
+    wholesale_count: 0,
+    low_stock_threshold: 0,
+    status: 'active',
+  });
+  const [isUpdatingProduct, setIsUpdatingProduct] = useState(false);
 
   const fetchProducts = useCallback(async (page: number = 1, search?: string) => {
-    setLoading(true);
+    setIsFetchingProducts(true);
     setError(null);
 
     try {
@@ -76,48 +67,40 @@ export default function InventoryPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load products');
     } finally {
-      setLoading(false);
+      setIsFetchingProducts(false);
+      setIsInitialLoading(false);
     }
   }, []);
 
+  // Initial load effect
   useEffect(() => {
-    console.log('[Inventory] Component MOUNTED', new Date().toISOString());
-    return () => {
-      console.log('[Inventory] Component UNMOUNTED', new Date().toISOString());
-      isFirstRender.current = true; // Reset for React Strict Mode double-mount
-    };
-  }, []);
-
-  useEffect(() => {
-    console.log('[Inventory] FETCH EFFECT - currentPage:', currentPage, 'time:', new Date().toISOString());
-    fetchProducts(currentPage, searchQuery || undefined);
-  }, [currentPage, searchQuery, fetchProducts]);
+    fetchProducts(1);
+  }, [fetchProducts]);
 
   // Debounced search effect
   useEffect(() => {
-    console.log('[Inventory] SEARCH EFFECT - searchQuery:', searchQuery, 'time:', new Date().toISOString());
-    
-    // Skip the initial render to prevent flickering
-    if (isFirstRender.current) {
-      console.log('[Inventory] SEARCH EFFECT skipped - initial render');
-      isFirstRender.current = false;
-      return;
-    }
-
     const debounceTimer = setTimeout(() => {
-      console.log('[Inventory] SEARCH DEBOUNCE fired - fetching with search:', searchQuery, 'time:', new Date().toISOString());
-      if (currentPage === 1) {
-        fetchProducts(1, searchQuery || undefined);
-      } else {
-        setCurrentPage(1);
-      }
+      setDebouncedSearchQuery(searchQuery);
     }, 500);
 
-    return () => {
-      console.log('[Inventory] SEARCH EFFECT cleanup - clearing timer');
-      clearTimeout(debounceTimer);
-    };
-  }, [searchQuery, fetchProducts]);
+    return () => clearTimeout(debounceTimer);
+  }, [searchQuery]);
+
+  // Fetch when debounced search query or page changes
+  useEffect(() => {
+    if (currentPage === 1) {
+      fetchProducts(1, debouncedSearchQuery || undefined);
+    } else {
+      setCurrentPage(1);
+    }
+  }, [debouncedSearchQuery, fetchProducts]);
+
+  // Fetch when page changes (with current search)
+  useEffect(() => {
+    if (currentPage !== 1) {
+      fetchProducts(currentPage, debouncedSearchQuery || undefined);
+    }
+  }, [currentPage, fetchProducts]);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= (pagination?.totalPages || 1)) {
@@ -191,7 +174,7 @@ export default function InventoryPage() {
   const handleConfirmSave = async () => {
     if (!selectedReason) return;
 
-    setIsSaving(true);
+    setIsSavingInventory(true);
     try {
       const items = Array.from(editedProducts.values()).map(edit => ({
         product_id: edit.id,
@@ -209,11 +192,11 @@ export default function InventoryPage() {
       setShowConfirmDialog(false);
       setSelectedReason(null);
       setRemarks('');
-      await fetchProducts(currentPage, searchQuery || undefined);
+      await fetchProducts(currentPage, debouncedSearchQuery || undefined);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update inventory');
     } finally {
-      setIsSaving(false);
+      setIsSavingInventory(false);
     }
   };
 
@@ -232,16 +215,16 @@ export default function InventoryPage() {
   const handleConfirmDelete = async () => {
     if (!productToDelete) return;
 
-    setIsDeleting(true);
+    setIsDeletingProduct(true);
     try {
       await apiClient.delete(`/products/${productToDelete.id}`);
       setShowDeleteDialog(false);
       setProductToDelete(null);
-      await fetchProducts(currentPage, searchQuery || undefined);
+      await fetchProducts(currentPage, debouncedSearchQuery || undefined);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete product');
     } finally {
-      setIsDeleting(false);
+      setIsDeletingProduct(false);
     }
   };
 
@@ -266,14 +249,14 @@ export default function InventoryPage() {
     setShowEditDialog(true);
   };
 
-  const handleEditFormChange = (field: keyof Product, value: string | number) => {
+  const handleEditFormChange = (field: keyof EditProductForm, value: string | number) => {
     setEditFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleConfirmEdit = async () => {
     if (!productToEdit) return;
 
-    setIsUpdating(true);
+    setIsUpdatingProduct(true);
     try {
       await apiClient.put(`/products/${productToEdit.id}`, {
         name: editFormData.name,
@@ -288,159 +271,64 @@ export default function InventoryPage() {
       });
       setShowEditDialog(false);
       setProductToEdit(null);
-      setEditFormData({});
-      await fetchProducts(currentPage, searchQuery || undefined);
+      setEditFormData({
+        name: '',
+        sku: '',
+        category: '',
+        price: 0,
+        cost: 0,
+        wholesale_price: 0,
+        wholesale_count: 0,
+        low_stock_threshold: 0,
+        status: 'active',
+      });
+      await fetchProducts(currentPage, debouncedSearchQuery || undefined);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update product');
     } finally {
-      setIsUpdating(false);
+      setIsUpdatingProduct(false);
     }
   };
 
   const handleCancelEditDialog = () => {
     setShowEditDialog(false);
     setProductToEdit(null);
-    setEditFormData({});
+    setEditFormData({
+      name: '',
+      sku: '',
+      category: '',
+      price: 0,
+      cost: 0,
+      wholesale_price: 0,
+      wholesale_count: 0,
+      low_stock_threshold: 0,
+      status: 'active',
+    });
   };
 
   const hasChanges = editedProducts.size > 0;
 
-  if (loading) {
-    return (
-      <div>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
-          <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: '#22c55e' }}>
-            Inventory
-          </h1>
-          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <div className="relative w-full sm:w-auto">
-              <input
-                type="text"
-                placeholder="Search products..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full sm:w-64 px-4 py-3 rounded-lg border-2 bg-[#1a1a1a] text-[#22c55e] placeholder-gray-500 focus:outline-none focus:border-[#22c55e] transition-colors"
-                style={{ borderColor: '#333' }}
-              />
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
-              >
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-              </svg>
-            </div>
-            <button 
-              onClick={() => router.push('/dashboard/inventory/add')}
-              className="px-4 sm:px-6 py-3 rounded-lg font-medium bg-[#22c55e] text-[#1a1a1a] hover:bg-[#16a34a] transition-colors text-sm sm:text-base"
-            >
-              Add Product
-            </button>
-            {hasChanges && (
-              <button
-                onClick={handleSaveClick}
-                className="px-4 sm:px-6 py-3 rounded-lg font-medium bg-[#22c55e] text-[#1a1a1a] hover:bg-[#16a34a] transition-colors text-sm sm:text-base"
-              >
-                Save Changes ({editedProducts.size})
-              </button>
-            )}
-          </div>
-        </div>
-        <div className="bg-[#222] rounded-xl border border-[#333] overflow-hidden">
-          <div className="p-4 border-b border-[#333] flex gap-4">
-            <div className="h-4 w-24 bg-[#333] rounded animate-pulse"></div>
-            <div className="h-4 w-20 bg-[#333] rounded animate-pulse"></div>
-            <div className="h-4 w-16 bg-[#333] rounded animate-pulse"></div>
-            <div className="h-4 w-20 bg-[#333] rounded animate-pulse"></div>
-            <div className="h-4 w-24 bg-[#333] rounded animate-pulse"></div>
-            <div className="h-4 w-24 bg-[#333] rounded animate-pulse"></div>
-          </div>
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="p-4 border-b border-[#333] flex gap-4">
-              <div className="h-4 w-32 bg-[#333] rounded animate-pulse"></div>
-              <div className="h-4 w-20 bg-[#333] rounded animate-pulse"></div>
-              <div className="h-4 w-16 bg-[#333] rounded animate-pulse"></div>
-              <div className="h-4 w-20 bg-[#333] rounded animate-pulse"></div>
-              <div className="h-4 w-24 bg-[#333] rounded animate-pulse"></div>
-              <div className="flex gap-2">
-                <div className="h-8 w-8 bg-[#333] rounded animate-pulse"></div>
-                <div className="h-8 w-8 bg-[#333] rounded animate-pulse"></div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-3 rounded-lg">
-        {error}
-      </div>
-    );
-  }
-
   return (
     <div>
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
-        <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: '#22c55e' }}>
-          Inventory
-        </h1>
-        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-          <div className="relative w-full sm:w-auto">
-            <input
-              type="text"
-              placeholder="Search products..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full sm:w-64 px-4 py-3 rounded-lg border-2 bg-[#1a1a1a] text-[#22c55e] placeholder-gray-500 focus:outline-none focus:border-[#22c55e] transition-colors"
-              style={{ borderColor: '#333' }}
-            />
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
-            >
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-          </div>
-          <button 
-            onClick={() => router.push('/dashboard/inventory/add')}
-            className="px-4 sm:px-6 py-3 rounded-lg font-medium bg-[#22c55e] text-[#1a1a1a] hover:bg-[#16a34a] transition-colors text-sm sm:text-base"
-          >
-            Add Product
-          </button>
-          {hasChanges && (
-            <button
-              onClick={handleSaveClick}
-              className="px-4 sm:px-6 py-3 rounded-lg font-medium bg-[#22c55e] text-[#1a1a1a] hover:bg-[#16a34a] transition-colors text-sm sm:text-base"
-            >
-              Save Changes ({editedProducts.size})
-            </button>
-          )}
+      <InventoryHeader
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onAddProduct={() => router.push('/dashboard/inventory/add')}
+        hasChanges={hasChanges}
+        editedCount={editedProducts.size}
+        onSaveChanges={handleSaveClick}
+      />
+
+      {isInitialLoading ? (
+        <InventorySkeleton />
+      ) : error ? (
+        <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-3 rounded-lg">
+          {error}
         </div>
-      </div>
-      
-      {products.length === 0 ? (
+      ) : products.length === 0 ? (
+
         <div className="bg-[#222] rounded-xl border border-[#333] p-12 text-center">
-          {searchQuery ? (
+          {debouncedSearchQuery ? (
             <>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -463,7 +351,7 @@ export default function InventoryPage() {
                 No products found
               </h3>
               <p className="mb-6" style={{ color: '#666' }}>
-                No products match your search "{searchQuery}". Try a different search term.
+                No products match your search "{debouncedSearchQuery}". Try a different search term.
               </p>
             </>
           ) : (
@@ -502,447 +390,54 @@ export default function InventoryPage() {
         </div>
       ) : (
         <>
-          <div className="bg-[#222] rounded-xl border border-[#333] overflow-hidden responsive-table">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[#333]">
-                  <th className="text-left p-3 sm:p-4 font-medium text-sm sm:text-base" style={{ color: '#9ca3af' }}>Product</th>
-                  <th className="text-left p-3 sm:p-4 font-medium text-sm sm:text-base hidden sm:table-cell" style={{ color: '#9ca3af' }}>SKU</th>
-                  <th className="text-left p-3 sm:p-4 font-medium text-sm sm:text-base" style={{ color: '#9ca3af' }}>Stock</th>
-                  <th className="text-left p-3 sm:p-4 font-medium text-sm sm:text-base hidden sm:table-cell" style={{ color: '#9ca3af' }}>Price</th>
-                  <th className="text-left p-3 sm:p-4 font-medium text-sm sm:text-base hidden sm:table-cell" style={{ color: '#9ca3af' }}>Status</th>
-                  <th className="text-left p-3 sm:p-4 font-medium text-sm sm:text-base" style={{ color: '#9ca3af' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.map((product) => {
-                  const edit = editedProducts.get(product.id);
-                  const isEdited = !!edit;
-                  return (
-                    <tr key={product.id} className="border-b border-[#333] hover:bg-[#333] transition-colors">
-                      <td className="p-3 sm:p-4 font-medium text-sm sm:text-base" style={{ color: '#22c55e' }}>{product.name}</td>
-                      <td className="p-3 sm:p-4 text-sm sm:text-base hidden sm:table-cell" style={{ color: '#9ca3af' }}>{product.sku}</td>
-                      <td className="p-3 sm:p-4">
-                        <input
-                          type="number"
-                          min="0"
-                          value={isEdited ? edit.newStock : product.stock}
-                          onChange={(e) => handleStockChange(product.id, e.target.value)}
-                          className={`w-16 sm:w-20 px-2 py-1 rounded bg-[#1a1a1a] text-[#22c55e] focus:outline-none focus:border-[#22c55e] border-2 text-sm ${
-                            isEdited ? 'border-[#22c55e]' : 'border-[#333]'
-                          }`}
-                        />
-                      </td>
-                      <td className="p-3 sm:p-4 text-sm sm:text-base hidden sm:table-cell" style={{ color: '#22c55e' }}>₱{Number(product.price).toFixed(2)}</td>
-                      <td className="p-3 sm:p-4 hidden sm:table-cell">
-                        <span className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(getStatusLabel(isEdited ? edit.newStock : product.stock))}`}>
-                          {getStatusLabel(isEdited ? edit.newStock : product.stock)}
-                        </span>
-                      </td>
-                      <td className="p-3 sm:p-4">
-                        <div className="flex gap-2">
-                          <button 
-                            onClick={() => handleEditClick(product)}
-                            className="p-2 rounded hover:bg-[#444] transition-colors" 
-                            style={{ color: '#22c55e' }}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                            </svg>
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteClick(product)}
-                            className="p-2 rounded hover:bg-[#444] transition-colors" 
-                            style={{ color: '#ef4444' }}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="3 6 5 6 21 6"></polyline>
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <InventoryTable
+            products={products}
+            editedProducts={editedProducts}
+            onStockChange={handleStockChange}
+            onEditClick={handleEditClick}
+            onDeleteClick={handleDeleteClick}
+          />
 
           {pagination && (
-            <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="text-xs sm:text-sm text-center sm:text-left" style={{ color: '#9ca3af' }}>
-                <span className="font-medium">Page {currentPage} of {pagination.totalPages}</span>
-                <span className="mx-2">•</span>
-                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, pagination.total)} of {pagination.total} products
-              </div>
-              <div className="flex gap-2 flex-wrap justify-center">
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="px-3 sm:px-4 py-2 rounded-lg border border-[#333] bg-[#222] text-[#9ca3af] hover:bg-[#333] disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-xs sm:text-sm"
-                >
-                  Previous
-                </button>
-                {Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => {
-                  let pageNum;
-                  if (pagination.totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= pagination.totalPages - 2) {
-                    pageNum = pagination.totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => handlePageChange(pageNum)}
-                      className={`px-3 sm:px-4 py-2 rounded-lg border transition-colors text-xs sm:text-sm ${
-                        currentPage === pageNum
-                          ? 'bg-[#22c55e] text-[#1a1a1a] border-[#22c55e]'
-                          : 'bg-[#222] text-[#9ca3af] border-[#333] hover:bg-[#333]'
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === pagination.totalPages}
-                  className="px-3 sm:px-4 py-2 rounded-lg border border-[#333] bg-[#222] text-[#9ca3af] hover:bg-[#333] disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-xs sm:text-sm"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
+            <InventoryPagination
+              pagination={pagination}
+              currentPage={currentPage}
+              itemsPerPage={ITEMS_PER_PAGE}
+              onPageChange={handlePageChange}
+            />
           )}
         </>
       )}
 
-      {/* Edit Product Dialog */}
-      {showEditDialog && productToEdit && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#222] rounded-xl border border-[#333] p-4 sm:p-6 max-w-2xl w-full mx-4 relative max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={handleCancelEditDialog}
-              className="absolute top-4 right-4 p-1 rounded hover:bg-[#333] transition-colors"
-              style={{ color: '#9ca3af' }}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
-            <h2 className="text-xl font-bold mb-4" style={{ color: '#22c55e' }}>
-              Edit Product
-            </h2>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
-                  Product Name
-                </label>
-                <input
-                  type="text"
-                  value={editFormData.name || ''}
-                  onChange={(e) => handleEditFormChange('name', e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[#1a1a1a] text-[#22c55e] border-2 border-[#333] focus:outline-none focus:border-[#22c55e]"
-                />
-              </div>
+      <EditProductDialog
+        show={showEditDialog}
+        product={productToEdit}
+        formData={editFormData}
+        isUpdating={isUpdatingProduct}
+        onFormChange={handleEditFormChange}
+        onConfirm={handleConfirmEdit}
+        onCancel={handleCancelEditDialog}
+      />
 
-              <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
-                  SKU
-                </label>
-                <input
-                  type="text"
-                  value={editFormData.sku || ''}
-                  onChange={(e) => handleEditFormChange('sku', e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[#1a1a1a] text-[#22c55e] border-2 border-[#333] focus:outline-none focus:border-[#22c55e]"
-                />
-              </div>
+      <DeleteProductDialog
+        show={showDeleteDialog}
+        product={productToDelete}
+        isDeleting={isDeletingProduct}
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+      />
 
-              <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
-                  Category
-                </label>
-                <input
-                  type="text"
-                  value={editFormData.category || ''}
-                  onChange={(e) => handleEditFormChange('category', e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[#1a1a1a] text-[#22c55e] border-2 border-[#333] focus:outline-none focus:border-[#22c55e]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
-                    Price (₱)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={editFormData.price || ''}
-                    onChange={(e) => handleEditFormChange('price', e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[#1a1a1a] text-[#22c55e] border-2 border-[#333] focus:outline-none focus:border-[#22c55e]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
-                    Cost (₱)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={editFormData.cost || ''}
-                    onChange={(e) => handleEditFormChange('cost', e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[#1a1a1a] text-[#22c55e] border-2 border-[#333] focus:outline-none focus:border-[#22c55e]"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
-                    Wholesale Price (₱)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={editFormData.wholesale_price || ''}
-                    onChange={(e) => handleEditFormChange('wholesale_price', e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[#1a1a1a] text-[#22c55e] border-2 border-[#333] focus:outline-none focus:border-[#22c55e]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
-                    Wholesale Count
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={editFormData.wholesale_count || ''}
-                    onChange={(e) => handleEditFormChange('wholesale_count', e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[#1a1a1a] text-[#22c55e] border-2 border-[#333] focus:outline-none focus:border-[#22c55e]"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
-                    Low Stock Threshold
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={editFormData.low_stock_threshold || ''}
-                    onChange={(e) => handleEditFormChange('low_stock_threshold', e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[#1a1a1a] text-[#22c55e] border-2 border-[#333] focus:outline-none focus:border-[#22c55e]"
-                  />
-                </div>
-
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
-                    Status
-                  </label>
-                  <select
-                    value={editFormData.status || ''}
-                    onChange={(e) => handleEditFormChange('status', e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[#1a1a1a] text-[#22c55e] border-2 border-[#333] focus:outline-none focus:border-[#22c55e]"
-                  >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
-                  Current Stock
-                </label>
-                <input
-                  type="number"
-                  value={productToEdit.stock}
-                  disabled
-                  className="w-full px-3 py-2 rounded-lg bg-[#333] text-[#666] border-2 border-[#333] cursor-not-allowed"
-                />
-                <p className="text-xs mt-1" style={{ color: '#666' }}>
-                  Stock cannot be edited here. Use the stock input in the table.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-3 justify-end mt-6">
-              <button
-                onClick={handleCancelEditDialog}
-                disabled={isUpdating}
-                className="px-4 py-2 rounded-lg border border-[#333] bg-[#222] text-[#9ca3af] hover:bg-[#333] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmEdit}
-                disabled={isUpdating}
-                className="px-4 py-2 rounded-lg bg-[#22c55e] text-[#1a1a1a] hover:bg-[#16a34a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isUpdating ? 'Saving...' : 'Save Changes'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Dialog */}
-      {showDeleteDialog && productToDelete && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#222] rounded-xl border border-[#333] p-4 sm:p-6 max-w-md w-full mx-4 relative">
-            <button
-              onClick={handleCancelDelete}
-              className="absolute top-4 right-4 p-1 rounded hover:bg-[#333] transition-colors"
-              style={{ color: '#9ca3af' }}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
-            <h2 className="text-xl font-bold mb-4" style={{ color: '#22c55e' }}>
-              Delete Product
-            </h2>
-            
-            <div className="mb-6" style={{ color: '#9ca3af' }}>
-              Are you sure you want to delete <span className="font-medium" style={{ color: '#22c55e' }}>{productToDelete.name}</span>? This action cannot be undone.
-            </div>
-
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={handleCancelDelete}
-                disabled={isDeleting}
-                className="px-4 py-2 rounded-lg border border-[#333] bg-[#222] text-[#9ca3af] hover:bg-[#333] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmDelete}
-                disabled={isDeleting}
-                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isDeleting ? 'Deleting...' : 'Yes, Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Inventory Adjustment Confirmation Dialog */}
-      {showConfirmDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#222] rounded-xl border border-[#333] p-4 sm:p-6 max-w-lg w-full mx-4 relative max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={() => setShowConfirmDialog(false)}
-              className="absolute top-4 right-4 p-1 rounded hover:bg-[#333] transition-colors"
-              style={{ color: '#9ca3af' }}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
-            <h2 className="text-xl font-bold mb-4" style={{ color: '#22c55e' }}>
-              Inventory Update Summary
-            </h2>
-            
-            <div className="mb-4" style={{ color: '#9ca3af' }}>
-              Products affected: {editedProducts.size}
-            </div>
-
-            <div className="space-y-3 mb-6 max-h-60 overflow-y-auto">
-              {Array.from(editedProducts.values()).map((edit) => {
-                const difference = edit.newStock - edit.originalStock;
-                return (
-                  <div key={edit.id} className="bg-[#1a1a1a] rounded-lg p-3">
-                    <div className="font-medium" style={{ color: '#22c55e' }}>{edit.name}</div>
-                    <div className="text-sm" style={{ color: '#9ca3af' }}>
-                      {edit.originalStock} → {edit.newStock}
-                    </div>
-                    <div className={`text-sm ${difference < 0 ? 'text-red-500' : 'text-green-500'}`}>
-                      Difference: {difference > 0 ? '+' : ''}{difference}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
-                Reason for Adjustment
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { value: 'SALE', label: 'Sale' },
-                  { value: 'RESTOCK', label: 'Restock' },
-                  { value: 'DAMAGED', label: 'Damaged' },
-                  { value: 'EXPIRED', label: 'Expired' },
-                  { value: 'LOST', label: 'Lost' },
-                  { value: 'ADJUSTMENT', label: 'Count Correction' },
-                ].map((reason) => (
-                  <label key={reason.value} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="reason"
-                      value={reason.value}
-                      checked={selectedReason === reason.value}
-                      onChange={(e) => setSelectedReason(e.target.value as any)}
-                      className="accent-[#22c55e]"
-                    />
-                    <span style={{ color: '#9ca3af' }}>{reason.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
-                Remarks (optional)
-              </label>
-              <textarea
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-[#1a1a1a] text-[#22c55e] border-2 border-[#333] focus:outline-none focus:border-[#22c55e] resize-none"
-                rows={2}
-                placeholder="Add any additional notes..."
-              />
-            </div>
-
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={handleCancelEdit}
-                disabled={isSaving}
-                className="px-4 py-2 rounded-lg border border-[#333] bg-[#222] text-[#9ca3af] hover:bg-[#333] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmSave}
-                disabled={!selectedReason || isSaving}
-                className="px-4 py-2 rounded-lg bg-[#22c55e] text-[#1a1a1a] hover:bg-[#16a34a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isSaving ? 'Saving...' : 'Confirm'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <InventoryAdjustmentDialog
+        show={showConfirmDialog}
+        editedProducts={editedProducts}
+        selectedReason={selectedReason}
+        remarks={remarks}
+        isSaving={isSavingInventory}
+        onReasonChange={setSelectedReason}
+        onRemarksChange={setRemarks}
+        onConfirm={handleConfirmSave}
+        onCancel={handleCancelEdit}
+      />
     </div>
   );
 }
