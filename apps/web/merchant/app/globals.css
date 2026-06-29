@@ -50,7 +50,12 @@ body {
   }
   
   .responsive-table table {
-    min-width: 600px;
+    min-width: 100%;
+  }
+  
+  .responsive-table th,
+  .responsive-table td {
+    padding: 12px 8px;
   }
 }
 

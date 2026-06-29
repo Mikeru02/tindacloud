@@ -509,7 +509,7 @@ export default function InventoryPage() {
                   <th className="text-left p-3 sm:p-4 font-medium text-sm sm:text-base" style={{ color: '#9ca3af' }}>Product</th>
                   <th className="text-left p-3 sm:p-4 font-medium text-sm sm:text-base hidden sm:table-cell" style={{ color: '#9ca3af' }}>SKU</th>
                   <th className="text-left p-3 sm:p-4 font-medium text-sm sm:text-base" style={{ color: '#9ca3af' }}>Stock</th>
-                  <th className="text-left p-3 sm:p-4 font-medium text-sm sm:text-base" style={{ color: '#9ca3af' }}>Price</th>
+                  <th className="text-left p-3 sm:p-4 font-medium text-sm sm:text-base hidden sm:table-cell" style={{ color: '#9ca3af' }}>Price</th>
                   <th className="text-left p-3 sm:p-4 font-medium text-sm sm:text-base hidden sm:table-cell" style={{ color: '#9ca3af' }}>Status</th>
                   <th className="text-left p-3 sm:p-4 font-medium text-sm sm:text-base" style={{ color: '#9ca3af' }}>Actions</th>
                 </tr>
@@ -533,7 +533,7 @@ export default function InventoryPage() {
                           }`}
                         />
                       </td>
-                      <td className="p-3 sm:p-4 text-sm sm:text-base" style={{ color: '#22c55e' }}>₱{Number(product.price).toFixed(2)}</td>
+                      <td className="p-3 sm:p-4 text-sm sm:text-base hidden sm:table-cell" style={{ color: '#22c55e' }}>₱{Number(product.price).toFixed(2)}</td>
                       <td className="p-3 sm:p-4 hidden sm:table-cell">
                         <span className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(getStatusLabel(isEdited ? edit.newStock : product.stock))}`}>
                           {getStatusLabel(isEdited ? edit.newStock : product.stock)}
