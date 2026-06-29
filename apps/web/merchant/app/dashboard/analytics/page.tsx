@@ -183,90 +183,93 @@ export default function AnalyticsPage() {
               Sales - Last 7 Days
             </h3>
             <div className="h-48 sm:h-64 responsive-table">
-              <svg viewBox="0 0 800 250" className="w-full h-full">
-                {/* Grid lines */}
-                {[0, 50, 100, 150, 200].map((y) => (
-                  <line
-                    key={y}
-                    x1="50"
-                    y1={y + 25}
-                    x2="750"
-                    y2={y + 25}
-                    stroke="#333"
-                    strokeWidth="1"
-                  />
-                ))}
+              {Object.values(analytics.dailySales).length > 0 && (() => {
+                const values = Object.values(analytics.dailySales);
+                const maxValue = Math.max(...values, 1);
+                return (
+                  <svg viewBox="0 0 800 250" className="w-full h-full">
+                    {/* Grid lines */}
+                    {[0, 0.25, 0.5, 0.75, 1].map((ratio) => (
+                      <line
+                        key={ratio}
+                        x1="50"
+                        y1={25 + ratio * 200}
+                        x2="750"
+                        y2={25 + ratio * 200}
+                        stroke="#333"
+                        strokeWidth="1"
+                      />
+                    ))}
 
-                {/* Y-axis labels */}
-                {[0, 50, 100, 150, 200].map((value, index) => (
-                  <text
-                    key={value}
-                    x="40"
-                    y={value + 30}
-                    textAnchor="end"
-                    fill="#9ca3af"
-                    fontSize="12"
-                  >
-                    ₱{200 - value * 2}
-                  </text>
-                ))}
+                    {/* Y-axis labels */}
+                    {[0, 0.25, 0.5, 0.75, 1].map((ratio) => (
+                      <text
+                        key={ratio}
+                        x="40"
+                        y={30 + ratio * 200}
+                        textAnchor="end"
+                        fill="#9ca3af"
+                        fontSize="12"
+                      >
+                        ₱{formatNumber(maxValue * (1 - ratio))}
+                      </text>
+                    ))}
 
-                {/* X-axis labels */}
-                {Object.keys(analytics.dailySales).map((date, index) => {
-                  const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'short' });
-                  return (
-                    <text
-                      key={date}
-                      x={80 + index * 100}
-                      y="240"
-                      textAnchor="middle"
-                      fill="#9ca3af"
-                      fontSize="12"
-                    >
-                      {dayName}
-                    </text>
-                  );
-                })}
+                    {/* X-axis labels */}
+                    {Object.keys(analytics.dailySales).map((date, index) => {
+                      const formattedDate = new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                      return (
+                        <text
+                          key={date}
+                          x={80 + index * 100}
+                          y="240"
+                          textAnchor="middle"
+                          fill="#9ca3af"
+                          fontSize="12"
+                        >
+                          {formattedDate}
+                        </text>
+                      );
+                    })}
 
-                {/* Line chart */}
-                {Object.values(analytics.dailySales).length > 0 && (() => {
-                  const values = Object.values(analytics.dailySales);
-                  const maxValue = Math.max(...values, 1);
-                  const points = values.map((value, index) => {
-                    const x = 80 + index * 100;
-                    const y = 225 - (value / maxValue) * 200;
-                    return `${x},${y}`;
-                  }).join(' ');
+                    {/* Line chart */}
+                    {(() => {
+                      const points = values.map((value, index) => {
+                        const x = 80 + index * 100;
+                        const y = 225 - (value / maxValue) * 200;
+                        return `${x},${y}`;
+                      }).join(' ');
 
-                  return (
-                    <polyline
-                      points={points}
-                      fill="none"
-                      stroke="#22c55e"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  );
-                })()}
+                      return (
+                        <polyline
+                          points={points}
+                          fill="none"
+                          stroke="#22c55e"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      );
+                    })()}
 
-                {/* Data points */}
-                {Object.entries(analytics.dailySales).map(([date, value], index) => {
-                  const maxValue = Math.max(...Object.values(analytics.dailySales), 1);
-                  const x = 80 + index * 100;
-                  const y = 225 - (value / maxValue) * 200;
-                  return (
-                    <circle
-                      key={date}
-                      cx={x}
-                      cy={y}
-                      r="6"
-                      fill="#22c55e"
-                      className="hover:r-8 transition-all cursor-pointer"
-                    />
-                  );
-                })}
-              </svg>
+                    {/* Data points */}
+                    {Object.entries(analytics.dailySales).map(([date, value], index) => {
+                      const x = 80 + index * 100;
+                      const y = 225 - (value / maxValue) * 200;
+                      return (
+                        <circle
+                          key={date}
+                          cx={x}
+                          cy={y}
+                          r="6"
+                          fill="#22c55e"
+                          className="hover:r-8 transition-all cursor-pointer"
+                        />
+                      );
+                    })}
+                  </svg>
+                );
+              })()}
             </div>
           </div>
 
