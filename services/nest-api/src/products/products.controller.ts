@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ProductsService } from './products.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -37,15 +38,17 @@ export class ProductsController {
   }
 
   @Post()
-  create(@Body() productData: any, @Request() req) {
+  @UseInterceptors(FileInterceptor('image'))
+  create(@UploadedFile() file: any, @Body() productData: any, @Request() req) {
     const merchantId = req.user.merchantId;
-    return this.productsService.create({ ...productData, merchant_id: merchantId });
+    return this.productsService.create({ ...productData, merchant_id: merchantId }, file);
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() productData: any, @Request() req) {
+  @UseInterceptors(FileInterceptor('image'))
+  update(@Param('id') id: string, @UploadedFile() file: any, @Body() productData: any, @Request() req) {
     const merchantId = req.user.merchantId;
-    return this.productsService.update(+id, merchantId, productData);
+    return this.productsService.update(+id, merchantId, productData, file);
   }
 
   @Delete(':id')

@@ -7,6 +7,9 @@ export class Product {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Column({ nullable: true })
+  image_url: string;
+
   @Column()
   merchant_id: number;
 

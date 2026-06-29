@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from '../entities/product.entity';
 import { CategoriesService } from '../categories/categories.service';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class ProductsService {
@@ -10,6 +11,7 @@ export class ProductsService {
     @InjectRepository(Product)
     private productsRepository: Repository<Product>,
     private categoriesService: CategoriesService,
+    private cloudinaryService: CloudinaryService,
   ) {}
 
   async findAll(merchantId: number, page: number = 1, limit: number = 10, search?: string) {
@@ -48,7 +50,7 @@ export class ProductsService {
     });
   }
 
-  async create(productData: Partial<Product> & { category_name?: string }) {
+  async create(productData: Partial<Product> & { category_name?: string }, file?: any) {
     let categoryId = productData.category_id;
 
     // If category name is provided instead of ID, find or create the category
@@ -57,17 +59,39 @@ export class ProductsService {
       categoryId = category.id;
     }
 
+    // Upload image to Cloudinary if provided
+    let imageUrl: string | undefined;
+    if (file) {
+      imageUrl = await this.cloudinaryService.uploadImage(file);
+    }
+
     const product = this.productsRepository.create({
       ...productData,
       category_id: categoryId,
+      image_url: imageUrl,
     });
     return this.productsRepository.save(product);
   }
 
-  async update(id: number, merchantId: number, productData: Partial<Product>) {
+  async update(id: number, merchantId: number, productData: Partial<Product>, file?: any) {
+    const existingProduct = await this.findOne(id, merchantId);
+
+    // Upload new image if provided
+    let imageUrl = productData.image_url;
+    if (file) {
+      // Delete old image if exists
+      if (existingProduct?.image_url) {
+        await this.cloudinaryService.deleteImage(existingProduct.image_url);
+      }
+      imageUrl = await this.cloudinaryService.uploadImage(file);
+    }
+
     await this.productsRepository.update(
       { id, merchant_id: merchantId },
-      productData,
+      {
+        ...productData,
+        image_url: imageUrl,
+      },
     );
     return this.findOne(id, merchantId);
   }

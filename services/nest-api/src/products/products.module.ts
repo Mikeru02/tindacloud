@@ -7,6 +7,7 @@ import { ProductsController } from './products.controller';
 import { Product } from '../entities/product.entity';
 import { JwtStrategy } from '../auth/jwt.strategy';
 import { CategoriesModule } from '../categories/categories.module';
+import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { CategoriesModule } from '../categories/categories.module';
       signOptions: { expiresIn: '1d' },
     }),
     CategoriesModule,
+    CloudinaryModule,
   ],
   controllers: [ProductsController],
   providers: [ProductsService, JwtStrategy],
