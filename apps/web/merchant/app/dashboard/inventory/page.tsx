@@ -97,9 +97,7 @@ export default function InventoryPage() {
 
   // Fetch when page changes (with current search)
   useEffect(() => {
-    if (currentPage !== 1) {
-      fetchProducts(currentPage, debouncedSearchQuery || undefined);
-    }
+    fetchProducts(currentPage, debouncedSearchQuery || undefined);
   }, [currentPage, fetchProducts]);
 
   const handlePageChange = (newPage: number) => {
