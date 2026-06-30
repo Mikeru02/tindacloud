@@ -7,6 +7,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { MerchantAuthModule } from './merchant-auth.module';
 import { User } from '../entities/user.entity';
 import { Merchant } from '../entities/merchant.entity';
 import { MerchantMember } from '../entities/merchant-member.entity';
@@ -24,9 +25,10 @@ import { MerchantMember } from '../entities/merchant-member.entity';
       inject: [ConfigService],
     }),
     ConfigModule,
+    MerchantAuthModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, JwtAuthGuard],
-  exports: [AuthService, JwtAuthGuard, JwtStrategy],
+  exports: [AuthService, JwtAuthGuard, JwtStrategy, MerchantAuthModule],
 })
 export class AuthModule {}

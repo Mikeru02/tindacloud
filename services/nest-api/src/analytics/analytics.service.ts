@@ -196,6 +196,31 @@ export class AnalyticsService {
     }));
   }
 
+  async getProductSalesData(merchantId: number) {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    thirtyDaysAgo.setHours(0, 0, 0, 0);
+
+    const productSales = await this.orderItemsRepository
+      .createQueryBuilder('orderItem')
+      .select('product.id', 'productId')
+      .addSelect('SUM(orderItem.quantity)', 'totalSold')
+      .addSelect('SUM(orderItem.quantity * orderItem.price)', 'totalRevenue')
+      .leftJoin('orderItem.product', 'product')
+      .leftJoin('orderItem.order', 'order')
+      .where('order.merchant_id = :merchantId', { merchantId })
+      .andWhere('order.created_at >= :thirtyDaysAgo', { thirtyDaysAgo })
+      .groupBy('product.id')
+      .getRawMany();
+
+    return productSales.map((item) => ({
+      productId: parseInt(item.productId),
+      totalSold: parseInt(item.totalSold) || 0,
+      totalRevenue: parseFloat(item.totalRevenue) || 0,
+      dailySalesVelocity: (parseInt(item.totalSold) || 0) / 30, // Average daily sales over 30 days
+    }));
+  }
+
   async getAllAnalytics(merchantId: number) {
     const [revenue, aov, conversionRate, dailySales, salesByCategory, topProducts] = await Promise.all([
       this.getRevenueThisMonth(merchantId),

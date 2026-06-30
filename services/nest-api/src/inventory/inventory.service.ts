@@ -12,6 +12,7 @@ export interface BatchUpdateItem {
 }
 
 export interface BatchUpdateRequest {
+  merchantId: number;
   items: BatchUpdateItem[];
   reason: 'SALE' | 'RESTOCK' | 'DAMAGED' | 'EXPIRED' | 'LOST' | 'ADJUSTMENT';
   remarks?: string;

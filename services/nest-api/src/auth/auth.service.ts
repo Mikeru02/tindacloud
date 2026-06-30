@@ -89,7 +89,7 @@ export class AuthService {
     await this.merchantMemberRepository.save(merchantMember);
 
     // Generate JWT token
-    const payload = { sub: savedUser.id, email: savedUser.email, merchantId: savedMerchant.id };
+    const payload = { sub: savedUser.id, email: savedUser.email };
     const access_token = this.jwtService.sign(payload);
 
     return {
@@ -133,7 +133,7 @@ export class AuthService {
     }
 
     // Generate JWT token
-    const payload = { sub: user.id, email: user.email, merchantId: merchantMember.merchant.id };
+    const payload = { sub: user.id, email: user.email };
     const access_token = this.jwtService.sign(payload);
 
     return {
@@ -143,11 +143,6 @@ export class AuthService {
         email: user.email,
         first_name: user.first_name,
         last_name: user.last_name,
-      },
-      merchant: {
-        id: merchantMember.merchant.id,
-        store_name: merchantMember.merchant.store_name,
-        role: merchantMember.role,
       },
     };
   }
