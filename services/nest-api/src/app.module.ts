@@ -14,6 +14,8 @@ import { CategoriesModule } from './categories/categories.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { MenuItemsModule } from './menu-items/menu-items.module';
+import { MerchantInvitationsModule } from './merchant-invitations/merchant-invitations.module';
+import { EmailModule } from './email/email.module';
 
 @Module({
   imports: [
@@ -36,6 +38,8 @@ import { MenuItemsModule } from './menu-items/menu-items.module';
     AnalyticsModule,
     InventoryModule,
     MenuItemsModule,
+    MerchantInvitationsModule,
+    EmailModule,
   ],
   controllers: [AppController],
   providers: [

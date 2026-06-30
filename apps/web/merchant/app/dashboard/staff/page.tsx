@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../../api/client';
 import { useStore } from '../../store/useStore';
+import InviteStaffDialog from '../../components/InviteStaffDialog';
 
 interface StaffMember {
   merchant_id: number;
@@ -17,12 +18,25 @@ interface StaffMember {
   };
 }
 
+interface PendingInvitation {
+  id: number;
+  merchant_id: number;
+  email: string;
+  role: string;
+  status: string;
+  created_at: string;
+  expire_at: string;
+  token: string;
+}
+
 export default function StaffPage() {
   const currentStore = useStore((state) => state.currentStore);
   const [searchQuery, setSearchQuery] = useState('');
   const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showInviteDialog, setShowInviteDialog] = useState(false);
 
   const fetchStaff = async () => {
     if (!currentStore?.id) return;
@@ -30,8 +44,12 @@ export default function StaffPage() {
     setError(null);
 
     try {
-      const response = await apiClient.get('/merchant-members', { params: { merchantId: currentStore.id } });
-      setStaff(response.data);
+      const [staffResponse, invitationsResponse] = await Promise.all([
+        apiClient.get('/merchant-members', { params: { merchantId: currentStore.id } }),
+        apiClient.get('/merchant-invitations', { params: { merchantId: currentStore.id } })
+      ]);
+      setStaff(staffResponse.data);
+      setPendingInvitations(invitationsResponse.data.filter((inv: PendingInvitation) => inv.status === 'pending'));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load staff');
     } finally {
@@ -53,12 +71,47 @@ export default function StaffPage() {
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'active':
+      case 'pending':
         return 'bg-green-500/20 text-green-500';
       case 'inactive':
         return 'bg-gray-500/20 text-gray-500';
       default:
         return 'bg-gray-500/20 text-gray-500';
     }
+  };
+
+  const handleCancelInvitation = async (invitationId: number) => {
+    if (!currentStore?.id) return;
+    try {
+      await apiClient.patch(`/merchant-invitations/${invitationId}/cancel`, {}, {
+        params: { merchantId: currentStore.id }
+      });
+      fetchStaff();
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to cancel invitation';
+      setError(errorMessage);
+      alert(errorMessage);
+    }
+  };
+
+  const handleResendInvitation = async (invitationId: number) => {
+    if (!currentStore?.id) return;
+    try {
+      await apiClient.post(`/merchant-invitations/${invitationId}/resend`, {}, {
+        params: { merchantId: currentStore.id }
+      });
+      alert('Invitation resent successfully');
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to resend invitation';
+      setError(errorMessage);
+      alert(errorMessage);
+    }
+  };
+
+  const handleCopyLink = async (token: string) => {
+    const link = `${window.location.origin}/invite/${token}`;
+    await navigator.clipboard.writeText(link);
+    alert('Link copied to clipboard');
   };
 
   if (error) {
@@ -101,7 +154,10 @@ export default function StaffPage() {
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
           </div>
-          <button className="px-4 sm:px-6 py-3 rounded-lg font-medium bg-[#22c55e] text-[#1a1a1a] hover:bg-[#16a34a] transition-colors text-sm sm:text-base">
+          <button 
+            onClick={() => setShowInviteDialog(true)}
+            className="px-4 sm:px-6 py-3 rounded-lg font-medium bg-[#22c55e] text-[#1a1a1a] hover:bg-[#16a34a] transition-colors text-sm sm:text-base"
+          >
             Invite Staff
           </button>
         </div>
@@ -157,13 +213,68 @@ export default function StaffPage() {
               <p className="mb-6 text-sm sm:text-base" style={{ color: '#666' }}>
                 Invite team members to help manage your store.
               </p>
-              <button className="px-4 sm:px-6 py-3 rounded-lg font-medium bg-[#22c55e] text-[#1a1a1a] hover:bg-[#16a34a] transition-colors text-sm sm:text-base">
+              <button 
+                onClick={() => setShowInviteDialog(true)}
+                className="px-4 sm:px-6 py-3 rounded-lg font-medium bg-[#22c55e] text-[#1a1a1a] hover:bg-[#16a34a] transition-colors text-sm sm:text-base"
+              >
                 Invite Staff
               </button>
             </div>
           ) : (
-            <div className="bg-[#222] rounded-xl border border-[#333] overflow-hidden responsive-table">
-              <table className="w-full">
+            <>
+              {/* Pending Invitations Section */}
+              {pendingInvitations.length > 0 && (
+                <div className="bg-[#222] rounded-xl border border-[#333] overflow-hidden mb-6">
+                  <div className="p-4 border-b border-[#333]">
+                    <h3 className="text-lg font-semibold" style={{ color: '#22c55e' }}>Pending Invitations</h3>
+                  </div>
+                  <div className="divide-y divide-[#333]">
+                    {pendingInvitations.map((invitation) => (
+                      <div key={invitation.id} className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="font-medium text-sm sm:text-base" style={{ color: '#22c55e' }}>{invitation.email}</div>
+                          <div className="text-sm" style={{ color: '#9ca3af' }}>{invitation.role}</div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(invitation.status)}`}>
+                              {invitation.status}
+                            </span>
+                            <span className="text-xs" style={{ color: '#666' }}>
+                              Expires: {new Date(invitation.expire_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => handleResendInvitation(invitation.id)}
+                            className="px-3 py-2 rounded-lg text-sm font-medium border border-[#444] bg-[#1a1a1a] text-gray-300 hover:bg-[#2a2a2a] hover:text-white transition-colors"
+                          >
+                            Resend
+                          </button>
+                          <button 
+                            onClick={() => handleCopyLink(invitation.token || '')}
+                            className="px-3 py-2 rounded-lg text-sm font-medium border border-[#444] bg-[#1a1a1a] text-gray-300 hover:bg-[#2a2a2a] hover:text-white transition-colors"
+                          >
+                            Copy Link
+                          </button>
+                          <button 
+                            onClick={() => handleCancelInvitation(invitation.id)}
+                            className="px-3 py-2 rounded-lg text-sm font-medium border border-red-500/50 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Active Staff Section */}
+              <div className="bg-[#222] rounded-xl border border-[#333] overflow-hidden responsive-table">
+                <div className="p-4 border-b border-[#333]">
+                  <h3 className="text-lg font-semibold" style={{ color: '#22c55e' }}>Active Staff</h3>
+                </div>
+                <table className="w-full">
                 <thead>
                   <tr className="border-b border-[#333]">
                     <th className="text-left p-3 sm:p-4 font-medium text-sm sm:text-base" style={{ color: '#9ca3af' }}>Staff Member</th>
@@ -203,11 +314,19 @@ export default function StaffPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
-            </div>
+                </table>
+              </div>
+            </>
           )}
         </>
       )}
+
+      <InviteStaffDialog
+        show={showInviteDialog}
+        onClose={() => setShowInviteDialog(false)}
+        onSuccess={fetchStaff}
+        merchantId={currentStore?.id || 0}
+      />
     </div>
   );
 }

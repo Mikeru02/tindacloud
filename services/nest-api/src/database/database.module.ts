@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { User } from '../entities/user.entity';
 import { Merchant } from '../entities/merchant.entity';
 import { MerchantMember } from '../entities/merchant-member.entity';
+import { MerchantInvitation } from '../entities/merchant-invitation.entity';
 import { Product } from '../entities/product.entity';
 import { Order } from '../entities/order.entity';
 import { OrderItem } from '../entities/order-item.entity';
@@ -22,7 +23,7 @@ import { MenuItem } from '../entities/menu-item.entity';
         username: process.env.DB_USER || 'postgres',
         password: process.env.DB_PASSWORD || 'postgres',
         database: process.env.DB_NAME || 'tindacloud',
-        entities: [User, Merchant, MerchantMember, Product, Order, OrderItem, Category, InventoryMovement, MenuItem],
+        entities: [User, Merchant, MerchantMember, MerchantInvitation, Product, Order, OrderItem, Category, InventoryMovement, MenuItem],
         synchronize: false,
         logging: true,
 
@@ -37,7 +38,7 @@ import { MenuItem } from '../entities/menu-item.entity';
         },
       }),
     }),
-    TypeOrmModule.forFeature([User, Merchant, MerchantMember, Product, Order, OrderItem, Category, InventoryMovement, MenuItem]),
+    TypeOrmModule.forFeature([User, Merchant, MerchantMember, MerchantInvitation, Product, Order, OrderItem, Category, InventoryMovement, MenuItem]),
   ],
   exports: [TypeOrmModule],
 })
