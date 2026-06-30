@@ -106,20 +106,25 @@ export default function AddStorePage() {
                 Store Type <span className="text-red-400">*</span>
               </label>
               <div className="relative">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute left-4 top-1/2 -translate-y-1/2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
                   <rect width="20" height="14" x="2" y="3" rx="2"/>
                   <line x1="8" x2="16" y1="21" y2="21"/>
                   <line x1="12" x2="12" y1="17" y2="21"/>
                 </svg>
-                <input
-                  type="text"
+                <select
                   value={storeType}
                   onChange={(e) => setStoreType(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 rounded-xl border-2 bg-[#1a1a1a] text-white placeholder-gray-500 focus:outline-none focus:border-[#22c55e] focus:ring-2 focus:ring-[#22c55e]/20 transition-all"
+                  className="w-full pl-12 pr-10 py-3 rounded-xl border-2 bg-[#1a1a1a] text-white focus:outline-none focus:border-[#22c55e] focus:ring-2 focus:ring-[#22c55e]/20 transition-all appearance-none cursor-pointer"
                   style={{ borderColor: '#333' }}
-                  placeholder="e.g., Retail, Restaurant, Wholesale"
                   required
-                />
+                >
+                  <option value="" disabled>Select store type</option>
+                  <option value="Retail">Retail</option>
+                  <option value="Restaurant">Restaurant</option>
+                </select>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
               </div>
             </div>
 

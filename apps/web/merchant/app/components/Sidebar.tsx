@@ -9,6 +9,7 @@ interface NavItem {
   name: string;
   href: string;
   icon: React.ReactNode;
+  storeTypes?: string[];
 }
 
 interface SidebarProps {
@@ -37,6 +38,20 @@ const navItems: NavItem[] = [
         <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
         <line x1="8" y1="21" x2="16" y2="21"></line>
         <line x1="12" y1="17" x2="12" y2="21"></line>
+      </svg>
+    ),
+  },
+  {
+    name: 'Menu',
+    href: '/dashboard/menu',
+    storeTypes: ['restaurant'],
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+        <polyline points="14 2 14 8 20 8"></polyline>
+        <line x1="16" y1="13" x2="8" y2="13"></line>
+        <line x1="16" y1="17" x2="8" y2="17"></line>
+        <line x1="10" y1="9" x2="8" y2="9"></line>
       </svg>
     ),
   },
@@ -114,6 +129,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     localStorage.removeItem('access_token');
     localStorage.removeItem('user');
     localStorage.removeItem('merchant');
+    localStorage.removeItem('merchant-storage');
     router.push('/');
   };
 
@@ -222,27 +238,38 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       </div>
 
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-        {navItems.map((item) => {
-          const isActive = item.href === '/dashboard' 
-            ? pathname === '/dashboard' 
-            : pathname.startsWith(item.href);
-          
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              onClick={handleNavClick}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                isActive
-                  ? 'bg-[#22c55e] text-[#1a1a1a]'
-                  : 'text-[#9ca3af] hover:bg-[#333] hover:text-[#22c55e]'
-              }`}
-            >
-              <span className={isActive ? 'text-[#1a1a1a]' : ''}>{item.icon}</span>
-              <span className="font-medium">{item.name}</span>
-            </Link>
-          );
-        })}
+        {navItems
+          .filter((item) => {
+            // If no storeTypes specified, show for all store types
+            if (!item.storeTypes || item.storeTypes.length === 0) {
+              return true;
+            }
+            // Only show if current store type is in the allowed storeTypes (case-insensitive)
+            return currentStore && item.storeTypes.some(
+              type => type.toLowerCase() === currentStore.store_type.toLowerCase()
+            );
+          })
+          .map((item) => {
+            const isActive = item.href === '/dashboard'
+              ? pathname === '/dashboard'
+              : pathname.startsWith(item.href);
+
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                onClick={handleNavClick}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                  isActive
+                    ? 'bg-[#22c55e] text-[#1a1a1a]'
+                    : 'text-[#9ca3af] hover:bg-[#333] hover:text-[#22c55e]'
+                }`}
+              >
+                <span className={isActive ? 'text-[#1a1a1a]' : ''}>{item.icon}</span>
+                <span className="font-medium">{item.name}</span>
+              </Link>
+            );
+          })}
       </nav>
       
       <div className="p-4 border-t border-[#333]">

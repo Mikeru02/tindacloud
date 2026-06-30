@@ -7,6 +7,7 @@ DROP TABLE IF EXISTS order_items CASCADE;
 DROP TABLE IF EXISTS orders CASCADE;
 DROP TABLE IF EXISTS cart_items CASCADE;
 DROP TABLE IF EXISTS cart CASCADE;
+DROP TABLE IF EXISTS menu_items CASCADE;
 DROP TABLE IF EXISTS products CASCADE;
 DROP TABLE IF EXISTS merchant_invitation CASCADE;
 DROP TABLE IF EXISTS merchant_members CASCADE;
@@ -142,6 +143,27 @@ CREATE TABLE products (
     CONSTRAINT chk_products_cost CHECK (cost >= 0.00),
     CONSTRAINT chk_products_stock CHECK (stock >= 0),
     CONSTRAINT chk_products_low_stock_threshold CHECK (low_stock_threshold >= 0)
+);
+
+CREATE TABLE menu_items (
+    id SERIAL,
+    merchant_id INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    price NUMERIC(12, 2) NOT NULL,
+    category VARCHAR(100),
+    status VARCHAR(50) DEFAULT 'available',
+    image_url VARCHAR(255),
+    ingredients TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    -- CONSTRAINTS
+    CONSTRAINT pk_menu_items PRIMARY KEY (id),
+    CONSTRAINT fk_menu_items_merchant FOREIGN KEY (merchant_id) 
+        REFERENCES merchants(id) ON DELETE RESTRICT,
+    CONSTRAINT chk_menu_items_price CHECK (price >= 0.00),
+    CONSTRAINT chk_menu_items_status CHECK (status IN ('available', 'unavailable'))
 );
 
 

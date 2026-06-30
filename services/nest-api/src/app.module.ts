@@ -13,6 +13,7 @@ import { MerchantsModule } from './merchants/merchants.module';
 import { CategoriesModule } from './categories/categories.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { MenuItemsModule } from './menu-items/menu-items.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { InventoryModule } from './inventory/inventory.module';
     CategoriesModule,
     AnalyticsModule,
     InventoryModule,
+    MenuItemsModule,
   ],
   controllers: [AppController],
   providers: [

@@ -9,6 +9,7 @@ import { Order } from '../entities/order.entity';
 import { OrderItem } from '../entities/order-item.entity';
 import { Category } from '../entities/category.entity';
 import { InventoryMovement } from '../entities/inventory-movement.entity';
+import { MenuItem } from '../entities/menu-item.entity';
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { InventoryMovement } from '../entities/inventory-movement.entity';
         username: process.env.DB_USER || 'postgres',
         password: process.env.DB_PASSWORD || 'postgres',
         database: process.env.DB_NAME || 'tindacloud',
-        entities: [User, Merchant, MerchantMember, Product, Order, OrderItem, Category, InventoryMovement],
+        entities: [User, Merchant, MerchantMember, Product, Order, OrderItem, Category, InventoryMovement, MenuItem],
         synchronize: false,
         logging: true,
 
@@ -36,7 +37,7 @@ import { InventoryMovement } from '../entities/inventory-movement.entity';
         },
       }),
     }),
-    TypeOrmModule.forFeature([User, Merchant, MerchantMember, Product, Order, OrderItem, Category, InventoryMovement]),
+    TypeOrmModule.forFeature([User, Merchant, MerchantMember, Product, Order, OrderItem, Category, InventoryMovement, MenuItem]),
   ],
   exports: [TypeOrmModule],
 })

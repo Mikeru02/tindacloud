@@ -451,16 +451,23 @@ export default function SignupPage() {
           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
-                <Input
-                  label="Store Type"
-                  type="text"
+                <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
+                  Store Type
+                </label>
+                <select
                   name="storeType"
-                  placeholder="Retail, Restaurant, etc."
                   value={formData.storeType}
                   onChange={handleChange}
-                  error={errors.storeType}
-                  autoComplete="organization-title"
-                />
+                  className="w-full px-4 py-3 rounded-lg border-2 bg-[#1a1a1a] text-white placeholder-gray-500 focus:outline-none focus:border-[#22c55e] transition-colors cursor-pointer"
+                  style={{ borderColor: errors.storeType ? '#ef4444' : '#333' }}
+                >
+                  <option value="" disabled>Select store type</option>
+                  <option value="Retail">Retail</option>
+                  <option value="Restaurant">Restaurant</option>
+                </select>
+                {errors.storeType && (
+                  <p className="mt-1 text-sm text-red-500">{errors.storeType}</p>
+                )}
               </div>
               <div className="col-span-2">
                 <Input
