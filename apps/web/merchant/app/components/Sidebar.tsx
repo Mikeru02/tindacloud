@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useStore, Merchant } from '../store/useStore';
-import CreateStoreDialog from './CreateStoreDialog';
 
 interface NavItem {
   name: string;
@@ -103,7 +102,6 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const router = useRouter();
   const { currentStore, stores, loadStores, selectStore, isLoading } = useStore();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('access_token');
@@ -208,7 +206,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
               <button
                 onClick={() => {
                   setIsDropdownOpen(false);
-                  setShowCreateDialog(true);
+                  router.push('/dashboard/stores/add');
                 }}
                 className="w-full text-left px-4 py-3 hover:bg-[#444] transition-colors flex items-center gap-3 text-[#22c55e] border-t border-[#444]"
               >
@@ -260,11 +258,6 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           <span className="font-medium">Sign Out</span>
         </button>
       </div>
-
-      <CreateStoreDialog
-        show={showCreateDialog}
-        onClose={() => setShowCreateDialog(false)}
-      />
     </aside>
   );
 }

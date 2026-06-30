@@ -207,7 +207,7 @@ export default function POSPage() {
         discount,
       };
 
-      await apiClient.post('/orders', orderData);
+      await apiClient.post('/orders', orderData, { params: { merchantId: currentStore?.id } });
       setCart([]);
       setDiscount(0);
       setCashReceived('');
