@@ -262,7 +262,7 @@ export default function InventoryPage() {
   };
 
   const handleConfirmEdit = async (imageFile?: File) => {
-    if (!productToEdit) return;
+    if (!productToEdit || !currentStore) return;
 
     setIsUpdatingProduct(true);
     try {
@@ -284,6 +284,9 @@ export default function InventoryPage() {
       await apiClient.put(`/products/${productToEdit.id}`, formDataToSend, {
         headers: {
           'Content-Type': 'multipart/form-data',
+        },
+        params: {
+          merchantId: currentStore.id,
         },
       });
       setShowEditDialog(false);

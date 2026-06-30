@@ -4,9 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import apiClient from '../../../api/client';
 import Input from '../../../components/Input';
+import { useStore } from '../../../store/useStore';
 
 export default function AddProductPage() {
   const router = useRouter();
+  const { currentStore } = useStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -86,6 +88,11 @@ export default function AddProductPage() {
       return;
     }
 
+    if (!currentStore) {
+      setError('No store selected. Please select a store first.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -117,6 +124,9 @@ export default function AddProductPage() {
       await apiClient.post('/products', formDataToSend, {
         headers: {
           'Content-Type': 'multipart/form-data',
+        },
+        params: {
+          merchantId: currentStore.id,
         },
       });
       router.push('/dashboard/inventory');
