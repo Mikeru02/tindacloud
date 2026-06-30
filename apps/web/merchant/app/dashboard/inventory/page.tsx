@@ -11,11 +11,13 @@ import InventorySkeleton from './components/InventorySkeleton';
 import EditProductDialog from './components/EditProductDialog';
 import DeleteProductDialog from './components/DeleteProductDialog';
 import InventoryAdjustmentDialog from './components/InventoryAdjustmentDialog';
+import { useStore } from '../../store/useStore';
 
 const ITEMS_PER_PAGE = 10;
 
 export default function InventoryPage() {
   const router = useRouter();
+  const { currentStore } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
@@ -48,12 +50,15 @@ export default function InventoryPage() {
   const [isUpdatingProduct, setIsUpdatingProduct] = useState(false);
 
   const fetchProducts = useCallback(async (page: number = 1, search?: string) => {
+    if (!currentStore) return;
+
     setIsFetchingProducts(true);
     setError(null);
 
     try {
       const response = await apiClient.get('/products', {
         params: {
+          merchantId: currentStore.id,
           page,
           limit: ITEMS_PER_PAGE,
           ...(search && { search }),
@@ -74,8 +79,10 @@ export default function InventoryPage() {
 
   // Initial load effect
   useEffect(() => {
-    fetchProducts(1);
-  }, [fetchProducts]);
+    if (currentStore) {
+      fetchProducts(1);
+    }
+  }, [fetchProducts, currentStore]);
 
   // Debounced search effect
   useEffect(() => {
@@ -170,7 +177,7 @@ export default function InventoryPage() {
   };
 
   const handleConfirmSave = async () => {
-    if (!selectedReason) return;
+    if (!selectedReason || !currentStore) return;
 
     setIsSavingInventory(true);
     try {
@@ -180,6 +187,7 @@ export default function InventoryPage() {
       }));
 
       await apiClient.post('/inventory/batch-update', {
+        merchantId: currentStore.id,
         items,
         reason: selectedReason,
         remarks: remarks || undefined,
@@ -211,11 +219,13 @@ export default function InventoryPage() {
   };
 
   const handleConfirmDelete = async () => {
-    if (!productToDelete) return;
+    if (!productToDelete || !currentStore) return;
 
     setIsDeletingProduct(true);
     try {
-      await apiClient.delete(`/products/${productToDelete.id}`);
+      await apiClient.delete(`/products/${productToDelete.id}`, {
+        params: { merchantId: currentStore.id }
+      });
       setShowDeleteDialog(false);
       setProductToDelete(null);
       await fetchProducts(currentPage, debouncedSearchQuery || undefined);

@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import apiClient from '../api/client';
+import BuySuggestionsDialog from './inventory/components/BuySuggestionsDialog';
+import { useStore } from '../store/useStore';
 
 interface DashboardStats {
   totalOrders: number;
@@ -23,8 +25,23 @@ interface Order {
 interface Product {
   id: number;
   name: string;
+  sku: string;
   stock: number;
   low_stock_threshold: number;
+  price: number;
+  cost: number;
+  wholesale_price: number;
+  wholesale_count: number;
+  status: string;
+  category: { id: number; name: string } | null;
+  image_url?: string;
+}
+
+interface ProductSalesData {
+  productId: number;
+  totalSold: number;
+  totalRevenue: number;
+  dailySalesVelocity: number;
 }
 
 const formatNumber = (num: number): string => {
@@ -41,27 +58,37 @@ const formatNumber = (num: number): string => {
 };
 
 export default function DashboardPage() {
+  const { currentStore } = useStore();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [totalProducts, setTotalProducts] = useState<number>(0);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [lowStockProducts, setLowStockProducts] = useState<Product[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [productSalesData, setProductSalesData] = useState<ProductSalesData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<'all' | '7days' | 'month'>('all');
+  const [showBuySuggestions, setShowBuySuggestions] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!currentStore) return;
+
       try {
-        const [statsRes, productsRes, ordersRes, lowStockRes] = await Promise.all([
-          apiClient.get('/orders/dashboard/stats', { params: { dateRange } }),
-          apiClient.get('/products/total/count'),
-          apiClient.get('/orders?limit=5', { params: { dateRange } }),
-          apiClient.get('/products/low-stock/alerts'),
+        const [statsRes, productsRes, ordersRes, lowStockRes, allProductsRes, salesDataRes] = await Promise.all([
+          apiClient.get('/orders/dashboard/stats', { params: { merchantId: currentStore.id, dateRange } }),
+          apiClient.get('/products/total/count', { params: { merchantId: currentStore.id } }),
+          apiClient.get('/orders?limit=5', { params: { merchantId: currentStore.id, dateRange } }),
+          apiClient.get('/products/low-stock/alerts', { params: { merchantId: currentStore.id } }),
+          apiClient.get('/products', { params: { merchantId: currentStore.id, limit: 1000 } }),
+          apiClient.get('/analytics/product-sales', { params: { merchantId: currentStore.id } }),
         ]);
 
         setStats(statsRes.data);
         setTotalProducts(productsRes.data);
         setRecentOrders(ordersRes.data.orders);
         setLowStockProducts(lowStockRes.data);
+        setAllProducts(allProductsRes.data.products);
+        setProductSalesData(salesDataRes.data);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -70,26 +97,164 @@ export default function DashboardPage() {
     };
 
     fetchData();
-  }, [dateRange]);
+  }, [dateRange, currentStore]);
+
+  const handleDownloadLowStock = () => {
+    if (lowStockProducts.length === 0) {
+      alert('No products are currently below their low stock threshold.');
+      return;
+    }
+
+    // Create CSV content
+    const headers = ['Product Name', 'SKU', 'Current Stock', 'Low Stock Threshold', 'Price', 'Cost', 'Category'];
+    const rows = lowStockProducts.map(product => [
+      product.name,
+      product.sku,
+      product.stock.toString(),
+      product.low_stock_threshold.toString(),
+      Number(product.price).toFixed(2),
+      Number(product.cost).toFixed(2),
+      product.category?.name || 'N/A',
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(',')),
+    ].join('\n');
+
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `low-stock-items-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleDownloadBuySuggestions = () => {
+    // Calculate buy suggestions for products below their low stock threshold
+    const suggestions = allProducts
+      .filter(product => product.stock < product.low_stock_threshold)
+      .map(product => {
+        const salesData = productSalesData.find(s => s.productId === product.id);
+        const dailySalesVelocity = salesData?.dailySalesVelocity || 0;
+        
+        // Calculate days of stock remaining at current sales velocity
+        const daysOfStock = dailySalesVelocity > 0 ? product.stock / dailySalesVelocity : Infinity;
+        
+        // Calculate suggested quantity based on sales velocity
+        // If product sells fast (less than 7 days of stock), buy for 30 days
+        // If product sells moderately (7-14 days of stock), buy for 21 days
+        // Otherwise, buy to reach 2x threshold
+        let suggestedQuantity;
+        if (dailySalesVelocity > 0 && daysOfStock < 7) {
+          // Fast selling: buy enough for 30 days
+          suggestedQuantity = Math.ceil((dailySalesVelocity * 30) - product.stock);
+        } else if (dailySalesVelocity > 0 && daysOfStock < 14) {
+          // Moderate selling: buy enough for 21 days
+          suggestedQuantity = Math.ceil((dailySalesVelocity * 21) - product.stock);
+        } else {
+          // Slow selling or no sales data: use threshold-based calculation
+          suggestedQuantity = (product.low_stock_threshold * 2) - product.stock;
+        }
+        
+        // Ensure minimum suggested quantity of at least the threshold
+        suggestedQuantity = Math.max(suggestedQuantity, product.low_stock_threshold - product.stock);
+        
+        const totalCost = suggestedQuantity * Number(product.cost);
+        
+        return {
+          product,
+          suggestedQuantity,
+          totalCost,
+          dailySalesVelocity,
+          daysOfStock: Math.round(daysOfStock * 10) / 10, // Round to 1 decimal
+        };
+      })
+      .sort((a, b) => b.totalCost - a.totalCost);
+
+    if (suggestions.length === 0) {
+      alert('No products are currently below their low stock threshold.');
+      return;
+    }
+
+    // Create CSV content
+    const headers = ['Product Name', 'SKU', 'Current Stock', 'Low Stock Threshold', 'Daily Sales Velocity', 'Days of Stock', 'Suggested Quantity', 'Unit Cost', 'Total Cost', 'Category'];
+    const rows = suggestions.map(({ product, suggestedQuantity, totalCost, dailySalesVelocity, daysOfStock }) => [
+      product.name,
+      product.sku,
+      product.stock.toString(),
+      product.low_stock_threshold.toString(),
+      dailySalesVelocity.toFixed(2),
+      daysOfStock === Infinity ? 'N/A' : daysOfStock.toString(),
+      suggestedQuantity.toString(),
+      Number(product.cost).toFixed(2),
+      totalCost.toFixed(2),
+      product.category?.name || 'N/A',
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(',')),
+    ].join('\n');
+
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `buy-suggestions-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
         <h1 className="text-3xl font-bold" style={{ color: '#22c55e' }}>
           Dashboard
         </h1>
-        <div className="flex items-center gap-2">
-          <label className="text-sm" style={{ color: '#9ca3af' }}>Filter:</label>
-          <select
-            value={dateRange}
-            onChange={(e) => setDateRange(e.target.value as 'all' | '7days' | 'month')}
-            className="bg-[#222] border border-[#333] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#22c55e]"
-            style={{ color: '#22c55e' }}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-2">
+            <label className="text-sm" style={{ color: '#9ca3af' }}>Filter:</label>
+            <select
+              value={dateRange}
+              onChange={(e) => setDateRange(e.target.value as 'all' | '7days' | 'month')}
+              className="bg-[#222] border border-[#333] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#22c55e]"
+              style={{ color: '#22c55e' }}
+            >
+              <option value="all">All time</option>
+              <option value="7days">Last 7 days</option>
+              <option value="month">Last month</option>
+            </select>
+          </div>
+          <button 
+            onClick={handleDownloadLowStock}
+            className="px-4 py-2 rounded-lg font-medium border border-[#333] bg-[#222] text-[#22c55e] hover:bg-[#333] transition-colors text-sm flex items-center gap-2"
           >
-            <option value="all">All time</option>
-            <option value="7days">Last 7 days</option>
-            <option value="month">Last month</option>
-          </select>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Download Low Stock
+          </button>
+          <button 
+            onClick={() => setShowBuySuggestions(true)}
+            className="px-4 py-2 rounded-lg font-medium border border-[#333] bg-[#222] text-[#22c55e] hover:bg-[#333] transition-colors text-sm flex items-center gap-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            Buy Suggestions
+          </button>
         </div>
       </div>
       
@@ -251,6 +416,14 @@ export default function DashboardPage() {
           </div>
         </>
       )}
+
+      <BuySuggestionsDialog
+        show={showBuySuggestions}
+        products={allProducts}
+        productSalesData={productSalesData}
+        onConfirm={handleDownloadBuySuggestions}
+        onCancel={() => setShowBuySuggestions(false)}
+      />
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import apiClient from '../../api/client';
+import { useStore } from '../../store/useStore';
 
 interface StaffMember {
   merchant_id: number;
@@ -17,17 +18,19 @@ interface StaffMember {
 }
 
 export default function StaffPage() {
+  const currentStore = useStore((state) => state.currentStore);
   const [searchQuery, setSearchQuery] = useState('');
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchStaff = async () => {
+    if (!currentStore?.id) return;
     setLoading(true);
     setError(null);
-    
+
     try {
-      const response = await apiClient.get('/merchant-members');
+      const response = await apiClient.get('/merchant-members', { params: { merchantId: currentStore.id } });
       setStaff(response.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load staff');
@@ -38,7 +41,7 @@ export default function StaffPage() {
 
   useEffect(() => {
     fetchStaff();
-  }, []);
+  }, [currentStore]);
 
   const getStaffName = (member: StaffMember) => {
     if (member.user) {

@@ -2,19 +2,24 @@
 
 import React, { useState, useEffect } from 'react';
 import apiClient from '../../api/client';
+import OrderDetailsModal from './OrderDetailsModal';
+import { useStore } from '../../store/useStore';
 
 interface Order {
   id: number;
   user_id: number;
   amount: number;
   status: string;
+  source: string;
   created_at: Date;
+  updated_at: Date;
   user: {
     id: number;
     email: string;
     first_name: string;
     last_name: string;
   };
+  items?: any[];
 }
 
 interface PaginatedResponse {
@@ -39,21 +44,28 @@ const formatNumber = (num: number): string => {
 };
 
 export default function OrdersPage() {
+  const { currentStore } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState<PaginatedResponse | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loadingOrderDetails, setLoadingOrderDetails] = useState(false);
   const ITEMS_PER_PAGE = 10;
 
   const fetchOrders = async (page: number = 1) => {
+    if (!currentStore) return;
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await apiClient.get('/orders', {
         params: {
+          merchantId: currentStore.id,
           page,
           limit: ITEMS_PER_PAGE,
         },
@@ -71,8 +83,10 @@ export default function OrdersPage() {
   };
 
   useEffect(() => {
-    fetchOrders(currentPage);
-  }, [currentPage]);
+    if (currentStore) {
+      fetchOrders(currentPage);
+    }
+  }, [currentPage, currentStore]);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= (pagination?.totalPages || 1)) {
@@ -110,6 +124,25 @@ export default function OrdersPage() {
       return `${order.user.first_name || ''} ${order.user.last_name || ''}`.trim() || order.user.email;
     }
     return 'Unknown';
+  };
+
+  const handleViewDetails = async (orderId: number) => {
+    setLoadingOrderDetails(true);
+    try {
+      const response = await apiClient.get(`/orders/${orderId}`);
+      setSelectedOrder(response.data);
+      setIsModalOpen(true);
+    } catch (err) {
+      console.error('Error fetching order details:', err);
+      alert('Failed to load order details');
+    } finally {
+      setLoadingOrderDetails(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedOrder(null);
   };
 
   if (error) {
@@ -229,8 +262,12 @@ export default function OrdersPage() {
                           </span>
                         </td>
                         <td className="p-3 sm:p-4">
-                          <button className="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium bg-[#333] hover:bg-[#444] transition-colors" style={{ color: '#22c55e' }}>
-                            View Details
+                          <button 
+                            onClick={() => handleViewDetails(order.id)}
+                            disabled={loadingOrderDetails}
+                            className="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium bg-[#333] hover:bg-[#444] transition-colors disabled:opacity-50 disabled:cursor-not-allowed" style={{ color: '#22c55e' }}
+                          >
+                            {loadingOrderDetails ? 'Loading...' : 'View Details'}
                           </button>
                         </td>
                       </tr>
@@ -291,6 +328,12 @@ export default function OrdersPage() {
           )}
         </>
       )}
+
+      <OrderDetailsModal 
+        order={selectedOrder} 
+        isOpen={isModalOpen} 
+        onClose={handleCloseModal} 
+      />
     </div>
   );
 }

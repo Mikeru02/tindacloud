@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import apiClient from '../../api/client';
+import { useStore } from '../../store/useStore';
 
 interface AnalyticsData {
   revenue: {
@@ -51,14 +52,16 @@ const sanitizeCategoryName = (category: string | null | undefined): string => {
 };
 
 export default function AnalyticsPage() {
+  const currentStore = useStore((state) => state.currentStore);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchAnalytics = async () => {
+      if (!currentStore?.id) return;
       try {
-        const response = await apiClient.get('/analytics');
+        const response = await apiClient.get('/analytics', { params: { merchantId: currentStore.id } });
         setAnalytics(response.data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load analytics');
@@ -68,7 +71,7 @@ export default function AnalyticsPage() {
     };
 
     fetchAnalytics();
-  }, []);
+  }, [currentStore]);
 
   if (error) {
     return (

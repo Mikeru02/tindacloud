@@ -1,8 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useStore, Merchant } from '../store/useStore';
+import CreateStoreDialog from './CreateStoreDialog';
 
 interface NavItem {
   name: string;
@@ -25,6 +27,17 @@ const navItems: NavItem[] = [
         <rect x="14" y="3" width="7" height="7"></rect>
         <rect x="14" y="14" width="7" height="7"></rect>
         <rect x="3" y="14" width="7" height="7"></rect>
+      </svg>
+    ),
+  },
+  {
+    name: 'POS',
+    href: '/dashboard/pos',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+        <line x1="8" y1="21" x2="16" y2="21"></line>
+        <line x1="12" y1="17" x2="12" y2="21"></line>
       </svg>
     ),
   },
@@ -88,6 +101,16 @@ const navItems: NavItem[] = [
 export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { currentStore, stores, loadStores, selectStore, isLoading } = useStore();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      loadStores();
+    }
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('access_token');
@@ -100,6 +123,13 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     if (onClose) {
       onClose();
     }
+  };
+
+  const handleStoreSelect = (store: Merchant) => {
+    selectStore(store);
+    setIsDropdownOpen(false);
+    // Refresh the current page to load data for the new store
+    router.refresh();
   };
 
   return (
@@ -127,7 +157,72 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           </svg>
         </button>
       </div>
-      
+
+      {/* Store Switcher */}
+      <div className="p-4 border-b border-[#333]">
+        <div className="relative">
+          <button
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            className="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-[#333] hover:bg-[#444] transition-colors"
+            style={{ color: '#9ca3af' }}
+          >
+            <div className="flex items-center gap-3">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+              </svg>
+              <span className="font-medium truncate">
+                {isLoading ? 'Loading...' : currentStore?.store_name || 'Select Store'}
+              </span>
+            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}>
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+
+          {isDropdownOpen && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-[#333] border border-[#444] rounded-lg shadow-lg z-10 max-h-64 overflow-y-auto">
+              {stores.map((store) => (
+                <button
+                  key={store.id}
+                  onClick={() => handleStoreSelect(store)}
+                  className={`w-full text-left px-4 py-3 hover:bg-[#444] transition-colors flex items-center gap-3 ${
+                    currentStore?.id === store.id ? 'bg-[#22c55e]/20 text-[#22c55e]' : 'text-[#9ca3af]'
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                  </svg>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{store.store_name}</div>
+                    <div className="text-xs opacity-70 capitalize">{store.role}</div>
+                  </div>
+                  {currentStore?.id === store.id && (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  )}
+                </button>
+              ))}
+              <button
+                onClick={() => {
+                  setIsDropdownOpen(false);
+                  setShowCreateDialog(true);
+                }}
+                className="w-full text-left px-4 py-3 hover:bg-[#444] transition-colors flex items-center gap-3 text-[#22c55e] border-t border-[#444]"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span className="font-medium">Create New Store</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         {navItems.map((item) => {
           const isActive = item.href === '/dashboard' 
@@ -165,6 +260,11 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           <span className="font-medium">Sign Out</span>
         </button>
       </div>
+
+      <CreateStoreDialog
+        show={showCreateDialog}
+        onClose={() => setShowCreateDialog(false)}
+      />
     </aside>
   );
 }
