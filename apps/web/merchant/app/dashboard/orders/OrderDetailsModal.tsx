@@ -4,13 +4,19 @@ import React from 'react';
 
 interface OrderItem {
   id: number;
-  product_id: number;
+  product_id: number | null;
+  menu_item_id: number | null;
   quantity: number;
   price: number;
-  product: {
+  item_type: string;
+  product?: {
     id: number;
     name: string;
     sku: string;
+  };
+  menuItem?: {
+    id: number;
+    name: string;
   };
 }
 
@@ -123,18 +129,24 @@ export default function OrderDetailsModal({ order, isOpen, onClose }: OrderDetai
             <h3 className="text-lg font-semibold text-[#22c55e] mb-3">Order Items</h3>
             {order.items && order.items.length > 0 ? (
               <div className="space-y-2">
-                {order.items.map((item) => (
-                  <div key={item.id} className="bg-[#1a1a1a] rounded-lg p-3 border border-[#333] flex items-center justify-between">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-[#22c55e]">{item.product.name}</p>
-                      <p className="text-xs text-[#9ca3af]">SKU: {item.product.sku}</p>
+                {order.items.map((item) => {
+                  const isMenuItem = item.item_type === 'menu_item';
+                  const itemName = isMenuItem ? item.menuItem?.name : item.product?.name;
+                  const itemSku = isMenuItem ? 'Menu Item' : item.product?.sku;
+
+                  return (
+                    <div key={item.id} className="bg-[#1a1a1a] rounded-lg p-3 border border-[#333] flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-[#22c55e]">{itemName || 'Unknown'}</p>
+                        <p className="text-xs text-[#9ca3af]">{itemSku || 'N/A'}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-[#9ca3af]">Qty: {item.quantity}</p>
+                        <p className="text-sm font-medium text-[#22c55e]">₱{Number(item.price).toFixed(2)}</p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm text-[#9ca3af]">Qty: {item.quantity}</p>
-                      <p className="text-sm font-medium text-[#22c55e]">₱{Number(item.price).toFixed(2)}</p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className="text-[#9ca3af] text-sm">No items found</p>

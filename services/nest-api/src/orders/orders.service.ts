@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Order } from '../entities/order.entity';
 import { OrderItem } from '../entities/order-item.entity';
 import { Product } from '../entities/product.entity';
+import { MenuItem } from '../entities/menu-item.entity';
+import { Merchant } from '../entities/merchant.entity';
 
 @Injectable()
 export class OrdersService {
@@ -14,10 +16,26 @@ export class OrdersService {
     private orderItemsRepository: Repository<OrderItem>,
     @InjectRepository(Product)
     private productsRepository: Repository<Product>,
+    @InjectRepository(MenuItem)
+    private menuItemsRepository: Repository<MenuItem>,
+    @InjectRepository(Merchant)
+    private merchantsRepository: Repository<Merchant>,
+    private dataSource: DataSource,
   ) {}
 
   async create(merchantId: number, createOrderDto: any) {
     const { items, total_amount, discount, tax } = createOrderDto;
+
+    // Get merchant to check store type
+    const merchant = await this.merchantsRepository.findOne({
+      where: { id: merchantId },
+    });
+
+    if (!merchant) {
+      throw new Error('Merchant not found');
+    }
+
+    const isRestaurant = merchant.store_type.toLowerCase() === 'restaurant';
 
     // Create the order
     const order = this.ordersRepository.create({
@@ -30,31 +48,94 @@ export class OrdersService {
 
     const savedOrder = await this.ordersRepository.save(order);
 
-    // Create order items
-    const orderItems = items.map((item: any) =>
-      this.orderItemsRepository.create({
-        order_id: savedOrder.id,
-        product_id: item.product_id,
-        quantity: item.quantity,
-        price: item.price,
-      }),
-    );
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    await this.orderItemsRepository.save(orderItems);
+    try {
+      // Create order items and handle inventory
+      for (const item of items) {
+        const orderItem = queryRunner.manager.create(OrderItem, {
+          order_id: savedOrder.id,
+          product_id: item.item_type === 'product' ? item.item_id : null,
+          menu_item_id: item.item_type === 'menu_item' ? item.item_id : null,
+          quantity: item.quantity,
+          price: item.price,
+          item_type: item.item_type || 'product',
+        });
+        await queryRunner.manager.save(orderItem);
 
-    // Update product stock
-    for (const item of items) {
-      const product = await this.productsRepository.findOne({
-        where: { id: item.product_id },
-      });
-      
-      if (product) {
-        const newStock = Math.max(0, product.stock - item.quantity);
-        await this.productsRepository.update(item.product_id, { stock: newStock });
+        if (isRestaurant && item.item_type === 'menu_item') {
+          // Deduct ingredients for menu items
+          const menuItem = await queryRunner.manager.findOne(MenuItem, {
+            where: { id: item.item_id, merchant_id: merchantId },
+          });
+
+          console.log('Menu item found:', menuItem?.name, 'ID:', item.item_id);
+          console.log('Menu item ingredients (raw):', menuItem?.ingredients);
+
+          // Parse ingredients if it's a string (TypeORM sometimes returns JSONB as string)
+          let ingredients = menuItem?.ingredients;
+          if (typeof ingredients === 'string') {
+            try {
+              ingredients = JSON.parse(ingredients);
+            } catch (e) {
+              console.error('Failed to parse ingredients JSON:', e);
+              ingredients = [];
+            }
+          }
+
+          console.log('Menu item ingredients (parsed):', ingredients);
+
+          if (ingredients && ingredients.length > 0) {
+            for (const ingredient of ingredients) {
+              if (!ingredient.product_id) {
+                console.error('Ingredient has undefined product_id:', ingredient);
+                continue;
+              }
+
+              const product = await queryRunner.manager.findOne(Product, {
+                where: { id: ingredient.product_id, merchant_id: merchantId },
+              });
+
+              if (product) {
+                const quantityToDeduct = ingredient.quantity * item.quantity;
+                const newStock = Math.max(0, product.stock - quantityToDeduct);
+                console.log(`Deducting ${quantityToDeduct} from product ${product.name} (ID: ${product.id}), new stock: ${newStock}`);
+                await queryRunner.manager.update(Product, ingredient.product_id, { stock: newStock });
+              } else {
+                console.error('Product not found for ingredient:', ingredient.product_id);
+              }
+            }
+          } else {
+            console.log('Menu item has no ingredients or ingredients array is empty');
+          }
+        } else {
+          // Deduct product stock for regular products
+          if (!item.item_id) {
+            console.error('Item has undefined item_id:', item);
+            continue;
+          }
+
+          const product = await queryRunner.manager.findOne(Product, {
+            where: { id: item.item_id, merchant_id: merchantId },
+          });
+
+          if (product) {
+            const newStock = Math.max(0, product.stock - item.quantity);
+            await queryRunner.manager.update(Product, item.item_id, { stock: newStock });
+          }
+        }
       }
-    }
 
-    return savedOrder;
+      await queryRunner.commitTransaction();
+      return savedOrder;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async findAll(merchantId: number, page: number = 1, limit: number = 10, dateRange?: 'all' | '7days' | 'month') {
@@ -109,8 +190,10 @@ export class OrdersService {
 
     const orderItems = await this.orderItemsRepository.find({
       where: { order_id: id },
-      relations: { product: true },
+      relations: { product: true, menuItem: true },
     });
+
+    console.log('Order items:', JSON.stringify(orderItems, null, 2));
 
     return {
       ...order,

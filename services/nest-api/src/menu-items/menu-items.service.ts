@@ -16,6 +16,10 @@ export class MenuItemsService {
   ) {}
 
   async create(merchantId: number, createMenuItemDto: CreateMenuItemDto): Promise<MenuItem> {
+    if (!merchantId) {
+      throw new NotFoundException('Merchant ID is required');
+    }
+
     const merchant = await this.merchantRepository.findOne({ where: { id: merchantId } });
     if (!merchant) {
       throw new NotFoundException('Merchant not found');

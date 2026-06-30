@@ -75,7 +75,7 @@ export default function MenuTable({ menuItems, onEditClick, onDeleteClick }: Men
                   {menuItem.category || '-'}
                 </td>
                 <td className="px-4 py-3 font-medium text-white">
-                  ₱{menuItem.price.toFixed(2)}
+                  ₱{Number(menuItem.price).toFixed(2)}
                 </td>
                 <td className="px-4 py-3">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(menuItem.status)}`}>

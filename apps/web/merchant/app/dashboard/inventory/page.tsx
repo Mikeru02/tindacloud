@@ -75,7 +75,7 @@ export default function InventoryPage() {
       setIsFetchingProducts(false);
       setIsInitialLoading(false);
     }
-  }, []);
+  }, [currentStore]);
 
   // Initial load effect
   useEffect(() => {

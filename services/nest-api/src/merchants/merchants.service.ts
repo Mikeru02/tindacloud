@@ -44,9 +44,29 @@ export class MerchantsService {
 
   async updateByUserId(userId: number, updateMerchantDto: UpdateMerchantDto) {
     const merchant = await this.findByUserId(userId);
-    
+
     Object.assign(merchant, updateMerchantDto);
-    
+
+    return this.merchantRepository.save(merchant);
+  }
+
+  async findOne(id: string) {
+    const merchant = await this.merchantRepository.findOne({
+      where: { id: parseInt(id) },
+    });
+
+    if (!merchant) {
+      throw new NotFoundException('Merchant not found');
+    }
+
+    return merchant;
+  }
+
+  async update(id: string, updateMerchantDto: UpdateMerchantDto) {
+    const merchant = await this.findOne(id);
+
+    Object.assign(merchant, updateMerchantDto);
+
     return this.merchantRepository.save(merchant);
   }
 

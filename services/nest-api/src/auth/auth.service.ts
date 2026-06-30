@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -9,6 +9,7 @@ import { MerchantMember } from '../entities/merchant-member.entity';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class AuthService {
@@ -176,5 +177,40 @@ export class AuthService {
     await this.userRepository.save(user);
 
     return { message: 'Password updated successfully' };
+  }
+
+  async getProfile(userId: number) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Don't return password
+    const { password, ...userWithoutPassword } = user;
+    return userWithoutPassword;
+  }
+
+  async updateProfile(userId: number, updateProfileDto: UpdateProfileDto) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Update only provided fields
+    if (updateProfileDto.first_name !== undefined) {
+      user.first_name = updateProfileDto.first_name;
+    }
+    if (updateProfileDto.last_name !== undefined) {
+      user.last_name = updateProfileDto.last_name;
+    }
+    if (updateProfileDto.phone !== undefined) {
+      user.phone = updateProfileDto.phone;
+    }
+
+    await this.userRepository.save(user);
+
+    // Don't return password
+    const { password, ...userWithoutPassword } = user;
+    return userWithoutPassword;
   }
 }

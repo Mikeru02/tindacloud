@@ -2,8 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import apiClient from '../../api/client';
+import { useStore } from '../../store/useStore';
 
 export default function SettingsPage() {
+  const { currentStore } = useStore();
   const [merchantData, setMerchantData] = useState({
     store_name: '',
     store_email: '',
@@ -19,24 +21,21 @@ export default function SettingsPage() {
       sms_urgent: false,
     },
   });
-  const [passwordData, setPasswordData] = useState({
-    current_password: '',
-    new_password: '',
-  });
-  const [passwordError, setPasswordError] = useState('');
-  const [passwordSuccess, setPasswordSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
-    fetchMerchantData();
-  }, []);
+    if (currentStore) {
+      fetchMerchantData();
+    }
+  }, [currentStore]);
 
   const fetchMerchantData = async () => {
+    if (!currentStore) return;
+
     try {
-      const response = await apiClient.get('/merchants/me');
+      const response = await apiClient.get(`/merchants/${currentStore.id}`);
       setMerchantData(response.data);
     } catch (error) {
       console.error('Failed to fetch merchant data:', error);
@@ -48,7 +47,7 @@ export default function SettingsPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
-    
+
     if (type === 'checkbox') {
       const checkbox = e.target as HTMLInputElement;
       if (name.startsWith('notification_')) {
@@ -69,11 +68,13 @@ export default function SettingsPage() {
   };
 
   const handleSave = async () => {
+    if (!currentStore) return;
+
     setIsSaving(true);
     setSaveMessage(null);
-    
+
     try {
-      await apiClient.put('/merchants/me', merchantData);
+      await apiClient.put(`/merchants/${currentStore.id}`, merchantData);
       setSaveMessage({ type: 'success', message: 'Settings saved successfully' });
       setTimeout(() => setSaveMessage(null), 3000);
     } catch (error) {
@@ -81,43 +82,6 @@ export default function SettingsPage() {
       setSaveMessage({ type: 'error', message: 'Failed to save settings' });
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPasswordData({
-      ...passwordData,
-      [e.target.name]: e.target.value,
-    });
-    setPasswordError('');
-    setPasswordSuccess('');
-  };
-
-  const handleUpdatePassword = async () => {
-    if (!passwordData.current_password || !passwordData.new_password) {
-      setPasswordError('Please fill in both password fields');
-      return;
-    }
-
-    if (passwordData.new_password.length < 8) {
-      setPasswordError('New password must be at least 8 characters');
-      return;
-    }
-
-    setIsUpdatingPassword(true);
-    setPasswordError('');
-    setPasswordSuccess('');
-    
-    try {
-      await apiClient.put('/auth/password', passwordData);
-      setPasswordSuccess('Password updated successfully');
-      setPasswordData({ current_password: '', new_password: '' });
-      setTimeout(() => setPasswordSuccess(''), 3000);
-    } catch (error: any) {
-      console.error('Failed to update password:', error);
-      setPasswordError(error.response?.data?.message || 'Failed to update password');
-    } finally {
-      setIsUpdatingPassword(false);
     }
   };
 
@@ -302,59 +266,6 @@ export default function SettingsPage() {
                     />
                   </div>
                 ))}
-              </div>
-            </div>
-
-            <div className="bg-[#222] rounded-xl p-4 sm:p-6 border border-[#333]">
-              <h3 className="text-lg sm:text-xl font-bold mb-4" style={{ color: '#22c55e' }}>
-                Security
-              </h3>
-              <div className="space-y-4">
-                {passwordError && (
-                  <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-3 rounded-lg">
-                    {passwordError}
-                  </div>
-                )}
-                {passwordSuccess && (
-                  <div className="bg-green-500/10 border border-green-500 text-green-500 px-4 py-3 rounded-lg">
-                    {passwordSuccess}
-                  </div>
-                )}
-                <div>
-                  <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
-                    Current Password
-                  </label>
-                  <input
-                    type="password"
-                    name="current_password"
-                    value={passwordData.current_password}
-                    onChange={handlePasswordChange}
-                    placeholder="••••••••"
-                    className="w-full px-4 py-3 rounded-lg border-2 bg-[#1a1a1a] text-[#22c55e] placeholder-gray-500 focus:outline-none focus:border-[#22c55e] transition-colors"
-                    style={{ borderColor: '#333' }}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
-                    New Password
-                  </label>
-                  <input
-                    type="password"
-                    name="new_password"
-                    value={passwordData.new_password}
-                    onChange={handlePasswordChange}
-                    placeholder="••••••••"
-                    className="w-full px-4 py-3 rounded-lg border-2 bg-[#1a1a1a] text-[#22c55e] placeholder-gray-500 focus:outline-none focus:border-[#22c55e] transition-colors"
-                    style={{ borderColor: '#333' }}
-                  />
-                </div>
-                <button
-                  onClick={handleUpdatePassword}
-                  disabled={isUpdatingPassword}
-                  className="px-6 py-3 rounded-lg font-medium bg-[#22c55e] text-[#1a1a1a] hover:bg-[#16a34a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isUpdatingPassword ? 'Updating...' : 'Update Password'}
-                </button>
               </div>
             </div>
 

@@ -17,8 +17,20 @@ interface Product {
   category: { id: number; name: string } | null;
 }
 
+interface MenuItem {
+  id: number;
+  name: string;
+  description?: string;
+  price: number;
+  category?: string;
+  status: string;
+  image_url?: string;
+  ingredients?: Array<{ product_id: number; quantity: number }>;
+}
+
 interface CartItem {
-  product: Product;
+  product?: Product;
+  menuItem?: MenuItem;
   quantity: number;
 }
 
@@ -31,6 +43,7 @@ interface HeldOrder {
 export default function POSPage() {
   const currentStore = useStore((state) => state.currentStore);
   const [products, setProducts] = useState<Product[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -50,7 +63,11 @@ export default function POSPage() {
   useEffect(() => {
     setIsMounted(true);
     setCurrentTime(new Date());
-    fetchProducts();
+    if (currentStore?.store_type?.toLowerCase() === 'restaurant') {
+      fetchMenuItems();
+    } else {
+      fetchProducts();
+    }
     fetchDailyStats();
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
@@ -98,6 +115,18 @@ export default function POSPage() {
     }
   };
 
+  const fetchMenuItems = async () => {
+    if (!currentStore?.id) return;
+    try {
+      const response = await apiClient.get('/menu-items', { params: { merchantId: currentStore.id, limit: 1000, status: 'available' } });
+      setMenuItems(response.data.menuItems);
+    } catch (error) {
+      console.error('Error fetching menu items:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const fetchDailyStats = async () => {
     if (!currentStore?.id) return;
     try {
@@ -109,54 +138,101 @@ export default function POSPage() {
     }
   };
 
-  const categories: string[] = ['All', ...Array.from(new Set(products.map(p => p.category?.name).filter((name): name is string => Boolean(name))))];
+  const isRestaurant = currentStore?.store_type?.toLowerCase() === 'restaurant';
+  
+  const categories: string[] = ['All', ...Array.from(new Set(
+    isRestaurant 
+      ? menuItems.map(m => m.category).filter((cat): cat is string => Boolean(cat))
+      : products.map(p => p.category?.name).filter((name): name is string => Boolean(name))
+  ))];
 
-  const filteredProducts = products.filter(product => {
-    const matchesSearch =
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (product.sku === searchQuery);
-    const matchesCategory = selectedCategory === 'All' || product.category?.name === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const filteredItems = isRestaurant 
+    ? menuItems.filter(item => {
+        const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
+        return matchesSearch && matchesCategory && item.status === 'available';
+      })
+    : products.filter(product => {
+        const matchesSearch =
+          product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          product.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (product.sku === searchQuery);
+        const matchesCategory = selectedCategory === 'All' || product.category?.name === selectedCategory;
+        return matchesSearch && matchesCategory;
+      });
 
-  const addToCart = (product: Product) => {
+  const addToCart = (item: Product | MenuItem) => {
     setCart(prevCart => {
-      const existingItem = prevCart.find(item => item.product.id === product.id);
-      if (existingItem) {
-        if (existingItem.quantity < product.stock) {
-          return prevCart.map(item =>
-            item.product.id === product.id
-              ? { ...item, quantity: item.quantity + 1 }
-              : item
-          );
+      const existingItem = prevCart.find(cartItem => {
+        if (isRestaurant) {
+          return cartItem.menuItem?.id === (item as MenuItem).id;
         }
-        return prevCart;
+        return cartItem.product?.id === (item as Product).id;
+      });
+      
+      if (existingItem) {
+        // Check stock limit for products
+        if (!isRestaurant) {
+          const product = item as Product;
+          if (existingItem.quantity >= product.stock) {
+            return prevCart; // Don't add if already at stock limit
+          }
+        }
+        
+        return prevCart.map(cartItem => {
+          if (isRestaurant) {
+            return cartItem.menuItem?.id === (item as MenuItem).id
+              ? { ...cartItem, quantity: cartItem.quantity + 1 }
+              : cartItem;
+          }
+          return cartItem.product?.id === (item as Product).id
+            ? { ...cartItem, quantity: cartItem.quantity + 1 }
+            : cartItem;
+        });
       }
-      return [...prevCart, { product, quantity: 1 }];
+      
+      if (isRestaurant) {
+        return [...prevCart, { menuItem: item as MenuItem, quantity: 1 }];
+      }
+      return [...prevCart, { product: item as Product, quantity: 1 }];
     });
   };
 
-  const removeFromCart = (productId: number) => {
-    setCart(prevCart => prevCart.filter(item => item.product.id !== productId));
+  const removeFromCart = (itemId: number) => {
+    setCart(prevCart => prevCart.filter(item => {
+      if (isRestaurant) {
+        return item.menuItem?.id !== itemId;
+      }
+      return item.product?.id !== itemId;
+    }));
   };
 
-  const updateQuantity = (productId: number, quantity: number) => {
+  const updateQuantity = (itemId: number, quantity: number) => {
     setCart(prevCart => {
-      const item = prevCart.find(item => item.product.id === productId);
+      const item = prevCart.find(cartItem => {
+        if (isRestaurant) {
+          return cartItem.menuItem?.id === itemId;
+        }
+        return cartItem.product?.id === itemId;
+      });
+      
       if (!item) return prevCart;
       
       if (quantity <= 0) {
-        return prevCart.filter(i => i.product.id !== productId);
+        return prevCart.filter(cartItem => {
+          if (isRestaurant) {
+            return cartItem.menuItem?.id !== itemId;
+          }
+          return cartItem.product?.id !== itemId;
+        });
       }
       
-      if (quantity > item.product.stock) {
-        return prevCart;
-      }
-      
-      return prevCart.map(i =>
-        i.product.id === productId ? { ...i, quantity } : i
-      );
+      return prevCart.map(cartItem => {
+        if (isRestaurant) {
+          return cartItem.menuItem?.id === itemId ? { ...cartItem, quantity } : cartItem;
+        }
+        return cartItem.product?.id === itemId ? { ...cartItem, quantity } : cartItem;
+      });
     });
   };
 
@@ -179,14 +255,22 @@ export default function POSPage() {
     }
   };
 
-  const getEffectivePrice = (product: Product, quantity: number) => {
+  const getEffectivePrice = (item: Product | MenuItem, quantity: number) => {
+    if (isRestaurant) {
+      return Number((item as MenuItem).price);
+    }
+    const product = item as Product;
     if (product.wholesale_price && product.wholesale_count && quantity >= product.wholesale_count) {
       return Number(product.wholesale_price);
     }
     return Number(product.price);
   };
 
-  const cartTotal = cart.reduce((sum, item) => sum + (getEffectivePrice(item.product, item.quantity) * item.quantity), 0);
+  const cartTotal = cart.reduce((sum, item) => {
+    const itemData = isRestaurant ? item.menuItem : item.product;
+    if (!itemData) return sum;
+    return sum + (getEffectivePrice(itemData, item.quantity) * item.quantity);
+  }, 0);
   const cartTotalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
   const discountAmount = cartTotal * (discount / 100);
   const total = cartTotal - discountAmount;
@@ -194,15 +278,23 @@ export default function POSPage() {
 
   const handleCheckout = async () => {
     if (cart.length === 0) return;
+    if (!cashReceived || cashReceived.trim() === '') {
+      alert('Please enter the cash received amount');
+      return;
+    }
     
     setIsProcessing(true);
     try {
       const orderData = {
-        items: cart.map(item => ({
-          product_id: item.product.id,
-          quantity: item.quantity,
-          price: getEffectivePrice(item.product, item.quantity),
-        })),
+        items: cart.map(item => {
+          const itemData = isRestaurant ? item.menuItem : item.product;
+          return {
+            item_id: itemData?.id,
+            item_type: isRestaurant ? 'menu_item' : 'product',
+            quantity: item.quantity,
+            price: getEffectivePrice(itemData!, item.quantity),
+          };
+        }),
         total_amount: total,
         discount,
       };
@@ -211,8 +303,11 @@ export default function POSPage() {
       setCart([]);
       setDiscount(0);
       setCashReceived('');
-      // alert('Order created successfully!');
-      fetchProducts();
+      if (isRestaurant) {
+        fetchMenuItems();
+      } else {
+        fetchProducts();
+      }
       fetchDailyStats();
       searchInputRef.current?.focus();
     } catch (error) {
@@ -394,31 +489,39 @@ export default function POSPage() {
                   </div>
                 ))}
               </div>
-            ) : filteredProducts.length === 0 ? (
+            ) : filteredItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full">
                 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mb-4">
                   <circle cx="11" cy="11" r="8"></circle>
                   <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                 </svg>
                 <p className="text-center text-[#9ca3af]">
-                  No products found
+                  {isRestaurant ? 'No menu items found' : 'No products found'}
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-4 gap-2 lg:gap-4">
-                {filteredProducts.map((product) => {
-                  const stockStatus = getStockStatus(product.stock);
+                {filteredItems.map((item) => {
+                  const isMenuItem = isRestaurant;
+                  const displayItem = isMenuItem ? item as MenuItem : item as Product;
+                  const stockStatus = isMenuItem ? null : getStockStatus((item as Product).stock);
                   return (
                     <div
-                      key={product.id}
-                      onClick={() => product.stock > 0 && addToCart(product)}
+                      key={displayItem.id}
+                      onClick={() => {
+                        if (isMenuItem) {
+                          addToCart(item);
+                        } else if ((item as Product).stock > 0) {
+                          addToCart(item);
+                        }
+                      }}
                       className={`bg-[#222] rounded-xl border border-[#333] overflow-hidden cursor-pointer transition-all hover:border-[#22c55e] ${
-                        product.stock === 0 ? 'opacity-50 cursor-not-allowed' : ''
+                        !isMenuItem && (item as Product).stock === 0 ? 'opacity-50 cursor-not-allowed' : ''
                       }`}
                     >
                       <div className="aspect-square bg-[#333] flex items-center justify-center overflow-hidden">
-                        {product.image_url ? (
-                          <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                        {displayItem.image_url ? (
+                          <img src={displayItem.image_url} alt={displayItem.name} className="w-full h-full object-cover" />
                         ) : (
                           <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
@@ -429,22 +532,27 @@ export default function POSPage() {
                       </div>
                       <div className="p-2 lg:p-4">
                         <h3 className="font-medium text-[#22c55e] mb-1 truncate text-xs lg:text-base">
-                          {product.name}
+                          {displayItem.name}
                         </h3>
                         <p className="text-sm lg:text-2xl font-bold text-[#22c55e] mb-1 lg:mb-2">
-                          ₱{Number(product.price).toFixed(2)}
+                          ₱{Number(displayItem.price).toFixed(2)}
                         </p>
-                        {product.wholesale_price && product.wholesale_count && (
+                        {!isMenuItem && (item as Product).wholesale_price && (item as Product).wholesale_count && (
                           <p className="text-[10px] lg:text-xs text-[#3b82f6] mb-1 lg:mb-2">
-                            ₱{Number(product.wholesale_price).toFixed(2)} each ({product.wholesale_count}+)
+                            ₱{Number((item as Product).wholesale_price).toFixed(2)} each ({(item as Product).wholesale_count}+)
                           </p>
                         )}
-                        {product.category && (
+                        {isMenuItem && (item as MenuItem).category && (
                           <p className="text-[10px] lg:text-xs text-[#9ca3af] mb-1 lg:mb-2 hidden sm:block">
-                            {product.category.name}
+                            {(item as MenuItem).category}
                           </p>
                         )}
-                        {product.stock <= 5 && (
+                        {!isMenuItem && (item as Product).category && (item as Product).category?.name && (
+                          <p className="text-[10px] lg:text-xs text-[#9ca3af] mb-1 lg:mb-2 hidden sm:block">
+                            {(item as Product).category?.name}
+                          </p>
+                        )}
+                        {!isMenuItem && stockStatus && (item as Product).stock <= 5 && (
                           <span className={`inline-block px-1.5 py-0.5 lg:px-2 lg:py-1 text-[10px] lg:text-xs font-medium rounded ${stockStatus.color}`}>
                             {stockStatus.label}
                           </span>
@@ -485,56 +593,61 @@ export default function POSPage() {
               </div>
             ) : (
               <div className="space-y-2 lg:space-y-3">
-                {cart.map((item) => (
-                  <div key={item.product.id} className="border border-[#333] rounded-lg p-3 lg:p-4 bg-[#1a1a1a]">
-                    <div className="flex items-start justify-between mb-2 lg:mb-3">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-[#22c55e] mb-1 text-sm lg:text-base">
-                          {item.product.name}
-                        </h4>
-                        <p className="text-xs lg:text-sm text-[#9ca3af]">
-                          ₱{getEffectivePrice(item.product, item.quantity).toFixed(2)} each
-                          {item.product.wholesale_price && item.product.wholesale_count && item.quantity >= item.product.wholesale_count && (
-                            <span className="ml-2 text-[#3b82f6] text-[10px]">(wholesale)</span>
-                          )}
+                {cart.map((item) => {
+                  const itemData = isRestaurant ? item.menuItem : item.product;
+                  if (!itemData) return null;
+                  const itemId = itemData.id;
+                  return (
+                    <div key={itemId} className="border border-[#333] rounded-lg p-3 lg:p-4 bg-[#1a1a1a]">
+                      <div className="flex items-start justify-between mb-2 lg:mb-3">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-[#22c55e] mb-1 text-sm lg:text-base">
+                            {itemData.name}
+                          </h4>
+                          <p className="text-xs lg:text-sm text-[#9ca3af]">
+                            ₱{getEffectivePrice(itemData, item.quantity).toFixed(2)} each
+                            {!isRestaurant && (item.product?.wholesale_price && item.product?.wholesale_count && item.quantity >= item.product.wholesale_count && (
+                              <span className="ml-2 text-[#3b82f6] text-[10px]">(wholesale)</span>
+                            ))}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => removeFromCart(itemId)}
+                          className="text-red-500 hover:text-red-400 transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                          </svg>
+                        </button>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => updateQuantity(itemId, item.quantity - 1)}
+                            className="w-8 h-8 rounded bg-[#333] hover:bg-[#444] transition-colors flex items-center justify-center text-[#22c55e] font-medium"
+                          >
+                            -
+                          </button>
+                          <span className="w-8 text-center font-medium text-[#22c55e]">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() => updateQuantity(itemId, item.quantity + 1)}
+                            disabled={!isRestaurant && item.quantity >= (item.product?.stock || 0)}
+                            className="w-8 h-8 rounded bg-[#333] hover:bg-[#444] transition-colors flex items-center justify-center text-[#22c55e] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            +
+                          </button>
+                        </div>
+                        <p className="font-bold text-[#22c55e] text-sm lg:text-base">
+                          ₱{(getEffectivePrice(itemData, item.quantity) * item.quantity).toFixed(2)}
                         </p>
                       </div>
-                      <button
-                        onClick={() => removeFromCart(item.product.id)}
-                        className="text-red-500 hover:text-red-400 transition-colors"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <line x1="18" y1="6" x2="6" y2="18"></line>
-                          <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                      </button>
                     </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
-                          className="w-8 h-8 rounded bg-[#333] hover:bg-[#444] transition-colors flex items-center justify-center text-[#22c55e] font-medium"
-                        >
-                          -
-                        </button>
-                        <span className="w-8 text-center font-medium text-[#22c55e]">
-                          {item.quantity}
-                        </span>
-                        <button
-                          onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
-                          disabled={item.quantity >= item.product.stock}
-                          className="w-8 h-8 rounded bg-[#333] hover:bg-[#444] transition-colors flex items-center justify-center text-[#22c55e] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          +
-                        </button>
-                      </div>
-                      <p className="font-bold text-[#22c55e] text-sm lg:text-base">
-                        ₱{(getEffectivePrice(item.product, item.quantity) * item.quantity).toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -681,56 +794,61 @@ export default function POSPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {cart.map((item) => (
-                    <div key={item.product.id} className="border border-[#333] rounded-lg p-3 bg-[#1a1a1a]">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-[#22c55e] mb-1 text-sm">
-                            {item.product.name}
-                          </h4>
-                          <p className="text-xs text-[#9ca3af]">
-                            ₱{getEffectivePrice(item.product, item.quantity).toFixed(2)} each
-                            {item.product.wholesale_price && item.product.wholesale_count && item.quantity >= item.product.wholesale_count && (
-                              <span className="ml-2 text-[#3b82f6] text-[10px]">(wholesale)</span>
-                            )}
+                  {cart.map((item) => {
+                    const itemData = isRestaurant ? item.menuItem : item.product;
+                    if (!itemData) return null;
+                    const itemId = itemData.id;
+                    return (
+                      <div key={itemId} className="border border-[#333] rounded-lg p-3 bg-[#1a1a1a]">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <h4 className="font-medium text-[#22c55e] mb-1 text-sm">
+                              {itemData.name}
+                            </h4>
+                            <p className="text-xs text-[#9ca3af]">
+                              ₱{getEffectivePrice(itemData, item.quantity).toFixed(2)} each
+                              {!isRestaurant && (item.product?.wholesale_price && item.product?.wholesale_count && item.quantity >= item.product.wholesale_count && (
+                                <span className="ml-2 text-[#3b82f6] text-[10px]">(wholesale)</span>
+                              ))}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => removeFromCart(itemId)}
+                            className="text-red-500 hover:text-red-400 transition-colors"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <line x1="18" y1="6" x2="6" y2="18"></line>
+                              <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                          </button>
+                        </div>
+                      
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => updateQuantity(itemId, item.quantity - 1)}
+                              className="w-8 h-8 rounded bg-[#333] hover:bg-[#444] transition-colors flex items-center justify-center text-[#22c55e] font-medium"
+                            >
+                              -
+                            </button>
+                            <span className="w-8 text-center font-medium text-[#22c55e]">
+                              {item.quantity}
+                            </span>
+                            <button
+                              onClick={() => updateQuantity(itemId, item.quantity + 1)}
+                              disabled={!isRestaurant && item.quantity >= (item.product?.stock || 0)}
+                              className="w-8 h-8 rounded bg-[#333] hover:bg-[#444] transition-colors flex items-center justify-center text-[#22c55e] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              +
+                            </button>
+                          </div>
+                          <p className="font-bold text-[#22c55e] text-sm">
+                            ₱{(getEffectivePrice(itemData, item.quantity) * item.quantity).toFixed(2)}
                           </p>
                         </div>
-                        <button
-                          onClick={() => removeFromCart(item.product.id)}
-                          className="text-red-500 hover:text-red-400 transition-colors"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                          </svg>
-                        </button>
                       </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
-                            className="w-8 h-8 rounded bg-[#333] hover:bg-[#444] transition-colors flex items-center justify-center text-[#22c55e] font-medium"
-                          >
-                            -
-                          </button>
-                          <span className="w-8 text-center font-medium text-[#22c55e]">
-                            {item.quantity}
-                          </span>
-                          <button
-                            onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
-                            disabled={item.quantity >= item.product.stock}
-                            className="w-8 h-8 rounded bg-[#333] hover:bg-[#444] transition-colors flex items-center justify-center text-[#22c55e] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            +
-                          </button>
-                        </div>
-                        <p className="font-bold text-[#22c55e] text-sm">
-                          ₱{(getEffectivePrice(item.product, item.quantity) * item.quantity).toFixed(2)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

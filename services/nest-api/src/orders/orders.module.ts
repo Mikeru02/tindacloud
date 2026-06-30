@@ -7,13 +7,15 @@ import { OrdersController } from './orders.controller';
 import { Order } from '../entities/order.entity';
 import { OrderItem } from '../entities/order-item.entity';
 import { Product } from '../entities/product.entity';
+import { MenuItem } from '../entities/menu-item.entity';
+import { Merchant } from '../entities/merchant.entity';
 import { MerchantMember } from '../entities/merchant-member.entity';
 import { JwtStrategy } from '../auth/jwt.strategy';
 import { MerchantAuthModule } from '../auth/merchant-auth.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order, OrderItem, Product, MerchantMember]),
+    TypeOrmModule.forFeature([Order, OrderItem, Product, MenuItem, Merchant, MerchantMember]),
     PassportModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'your-secret-key',

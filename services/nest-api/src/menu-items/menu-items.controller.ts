@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { MenuItemsService } from './menu-items.service';
 import { CreateMenuItemDto } from './dto/create-menu-item.dto';
 import { UpdateMenuItemDto } from './dto/update-menu-item.dto';
@@ -11,7 +12,37 @@ export class MenuItemsController {
   constructor(private readonly menuItemsService: MenuItemsService) {}
 
   @Post()
-  create(@Body('merchantId') merchantId: number, @Body() createMenuItemDto: CreateMenuItemDto) {
+  @UseInterceptors(FileInterceptor('image'))
+  create(
+    @Query('merchantId') merchantId: number,
+    @Body() body: any,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    console.log('Request body:', body);
+    console.log('Uploaded file:', file);
+
+    if (!merchantId) {
+      throw new Error('Merchant ID is required');
+    }
+
+    if (!body.name) {
+      throw new Error('Name is required');
+    }
+
+    if (!body.price) {
+      throw new Error('Price is required');
+    }
+
+    const createMenuItemDto: CreateMenuItemDto = {
+      name: body.name,
+      description: body.description,
+      price: parseFloat(body.price),
+      category: body.category,
+      status: body.status || 'available',
+      image_url: body.image_url,
+      ingredients: body.ingredients ? (typeof body.ingredients === 'string' ? JSON.parse(body.ingredients) : body.ingredients) : undefined,
+    };
+
     return this.menuItemsService.create(merchantId, createMenuItemDto);
   }
 

@@ -272,7 +272,25 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           })}
       </nav>
       
-      <div className="p-4 border-t border-[#333]">
+      <div className="p-4 border-t border-[#333] space-y-2">
+        <Link
+          href="/dashboard/account-settings"
+          onClick={handleNavClick}
+          className="flex items-center gap-3 px-4 py-3 rounded-lg text-[#9ca3af] hover:bg-[#333] hover:text-[#22c55e] transition-colors w-full"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="7" r="4"></circle>
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="19" cy="19" r="3"></circle>
+            <path d="M19 16v2"></path>
+            <path d="M19 22v2"></path>
+            <path d="M21.5 19h-2"></path>
+            <path d="M21.5 21h-2"></path>
+            <path d="M16.5 19h-2"></path>
+            <path d="M16.5 21h-2"></path>
+          </svg>
+          <span className="font-medium">Account Settings</span>
+        </Link>
         <button
           onClick={handleLogout}
           className="flex items-center gap-3 px-4 py-3 rounded-lg text-[#ef4444] hover:bg-[#ef4444]/10 hover:text-[#ef4444] transition-colors w-full"

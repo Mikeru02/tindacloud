@@ -28,4 +28,14 @@ export class MerchantsController {
   async updateMyMerchant(@Request() req, @Body() updateMerchantDto: UpdateMerchantDto) {
     return this.merchantsService.updateByUserId(req.user.userId, updateMerchantDto);
   }
+
+  @Get(':id')
+  async findOne(@Request() req) {
+    return this.merchantsService.findOne(req.params.id);
+  }
+
+  @Put(':id')
+  async update(@Request() req, @Body() updateMerchantDto: UpdateMerchantDto) {
+    return this.merchantsService.update(req.params.id, updateMerchantDto);
+  }
 }

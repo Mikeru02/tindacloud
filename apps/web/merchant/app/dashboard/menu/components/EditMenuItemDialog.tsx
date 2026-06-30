@@ -36,7 +36,11 @@ export default function EditMenuItemDialog({
 
   useEffect(() => {
     if (formData.ingredients) {
-      setLocalIngredients(formData.ingredients);
+      // Handle case where ingredients might be a string (JSON stringified)
+      const parsedIngredients = typeof formData.ingredients === 'string'
+        ? JSON.parse(formData.ingredients)
+        : formData.ingredients;
+      setLocalIngredients(Array.isArray(parsedIngredients) ? parsedIngredients : []);
     } else {
       setLocalIngredients([]);
     }
