@@ -43,6 +43,7 @@ export default function MenuPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [menuItemToDelete, setMenuItemToDelete] = useState<MenuItem | null>(null);
   const [isDeletingMenuItem, setIsDeletingMenuItem] = useState(false);
+  const [products, setProducts] = useState<any[]>([]);
 
   const fetchMenuItems = useCallback(async (page: number = 1, search?: string, category?: string, status?: string) => {
     if (!currentStore) return;
@@ -87,6 +88,19 @@ export default function MenuPage() {
     }
   }, [currentStore]);
 
+  const fetchProducts = useCallback(async () => {
+    if (!currentStore) return;
+
+    try {
+      const response = await apiClient.get('/products', {
+        params: { merchantId: currentStore.id, limit: 1000 },
+      });
+      setProducts(response.data.products);
+    } catch (err) {
+      console.error('Failed to load products:', err);
+    }
+  }, [currentStore]);
+
   // Initial load effect
   useEffect(() => {
     if (currentStore) {
@@ -96,8 +110,9 @@ export default function MenuPage() {
       }
       fetchMenuItems(1);
       fetchCategories();
+      fetchProducts();
     }
-  }, [fetchMenuItems, fetchCategories, currentStore, router]);
+  }, [fetchMenuItems, fetchCategories, fetchProducts, currentStore, router]);
 
   // Debounced search effect
   useEffect(() => {
@@ -147,6 +162,7 @@ export default function MenuPage() {
       price: menuItem.price,
       category: menuItem.category || '',
       status: menuItem.status,
+      ingredients: menuItem.ingredients || [],
     });
     setShowEditDialog(true);
   };
@@ -189,6 +205,7 @@ export default function MenuPage() {
       price: 0,
       category: '',
       status: 'available',
+      ingredients: [],
     });
   };
 
@@ -303,6 +320,7 @@ export default function MenuPage() {
         onFormChange={handleEditFormChange}
         onConfirm={handleConfirmEdit}
         onCancel={handleCancelEditDialog}
+        products={products}
       />
 
       <DeleteMenuItemDialog

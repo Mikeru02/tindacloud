@@ -5,6 +5,17 @@ import { useRouter } from 'next/navigation';
 import apiClient from '../../../api/client';
 import { useStore } from '../../../store/useStore';
 
+interface Product {
+  id: number;
+  name: string;
+  stock: number;
+}
+
+interface Ingredient {
+  product_id: number;
+  quantity: number;
+}
+
 export default function AddMenuItemPage() {
   const router = useRouter();
   const { currentStore } = useStore();
@@ -20,6 +31,10 @@ export default function AddMenuItemPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [selectedProductId, setSelectedProductId] = useState<string>('');
+  const [ingredientQuantity, setIngredientQuantity] = useState<string>('1');
 
   useEffect(() => {
     if (currentStore) {
@@ -28,6 +43,7 @@ export default function AddMenuItemPage() {
         return;
       }
       fetchCategories();
+      fetchProducts();
     }
   }, [currentStore, router]);
 
@@ -41,6 +57,19 @@ export default function AddMenuItemPage() {
       setCategories(response.data);
     } catch (err) {
       console.error('Failed to load categories:', err);
+    }
+  };
+
+  const fetchProducts = async () => {
+    if (!currentStore) return;
+
+    try {
+      const response = await apiClient.get('/products', {
+        params: { merchantId: currentStore.id, limit: 1000 },
+      });
+      setProducts(response.data.products);
+    } catch (err) {
+      console.error('Failed to load products:', err);
     }
   };
 
@@ -61,6 +90,30 @@ export default function AddMenuItemPage() {
     }
   };
 
+  const handleAddIngredient = () => {
+    if (!selectedProductId || !ingredientQuantity) return;
+
+    const productId = parseInt(selectedProductId);
+    const quantity = parseFloat(ingredientQuantity);
+
+    if (isNaN(productId) || isNaN(quantity) || quantity <= 0) return;
+
+    // Check if ingredient already exists
+    if (ingredients.some(ing => ing.product_id === productId)) {
+      setError('This ingredient is already added');
+      return;
+    }
+
+    setIngredients([...ingredients, { product_id: productId, quantity }]);
+    setSelectedProductId('');
+    setIngredientQuantity('1');
+    setError(null);
+  };
+
+  const handleRemoveIngredient = (productId: number) => {
+    setIngredients(ingredients.filter(ing => ing.product_id !== productId));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentStore) return;
@@ -76,6 +129,7 @@ export default function AddMenuItemPage() {
       formDataToSend.append('price', formData.price);
       formDataToSend.append('category', formData.category);
       formDataToSend.append('status', formData.status);
+      formDataToSend.append('ingredients', JSON.stringify(ingredients));
 
       if (imageFile) {
         formDataToSend.append('image', imageFile);
@@ -97,7 +151,7 @@ export default function AddMenuItemPage() {
   };
 
   return (
-    <div className="max-w-2xl">
+    <div>
       <div className="mb-6">
         <button
           onClick={() => router.back()}
@@ -270,6 +324,85 @@ export default function AddMenuItemPage() {
               <option value="available">Available</option>
               <option value="unavailable">Unavailable</option>
             </select>
+          </div>
+
+          {/* Ingredients */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
+              Ingredients (from Inventory)
+            </label>
+            
+            {/* Add Ingredient Form */}
+            <div className="flex gap-2 mb-4">
+              <select
+                value={selectedProductId}
+                onChange={(e) => setSelectedProductId(e.target.value)}
+                className="flex-1 px-4 py-2 rounded-lg bg-[#333] border border-[#444] text-white focus:outline-none focus:border-[#22c55e]"
+              >
+                <option value="">Select ingredient from inventory...</option>
+                {products.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.name} (Stock: {product.stock})
+                  </option>
+                ))}
+              </select>
+              <input
+                type="number"
+                value={ingredientQuantity}
+                onChange={(e) => setIngredientQuantity(e.target.value)}
+                min="0.01"
+                step="0.01"
+                placeholder="Qty"
+                className="w-24 px-4 py-2 rounded-lg bg-[#333] border border-[#444] text-white focus:outline-none focus:border-[#22c55e]"
+              />
+              <button
+                type="button"
+                onClick={handleAddIngredient}
+                className="px-4 py-2 rounded-lg bg-[#22c55e] text-[#1a1a1a] hover:bg-[#16a34a] transition-colors font-medium"
+              >
+                Add
+              </button>
+            </div>
+
+            {/* Ingredients List */}
+            {ingredients.length > 0 && (
+              <div className="bg-[#333] rounded-lg p-4 border border-[#444]">
+                <h4 className="text-sm font-medium mb-3" style={{ color: '#9ca3af' }}>
+                  Added Ingredients:
+                </h4>
+                <div className="space-y-2">
+                  {ingredients.map((ingredient) => {
+                    const product = products.find(p => p.id === ingredient.product_id);
+                    return (
+                      <div
+                        key={ingredient.product_id}
+                        className="flex items-center justify-between bg-[#222] rounded-lg px-3 py-2"
+                      >
+                        <span className="text-white">
+                          {product?.name || 'Unknown'} - Qty: {ingredient.quantity}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveIngredient(ingredient.product_id)}
+                          className="text-red-500 hover:text-red-400 transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                          </svg>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {products.length === 0 && (
+              <p className="text-sm mt-2" style={{ color: '#666' }}>
+                No products in inventory. Add products to your inventory first to select them as ingredients.
+              </p>
+            )}
           </div>
         </div>
 

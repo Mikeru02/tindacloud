@@ -31,4 +31,5 @@ export interface EditMenuItemForm {
   category: string;
   status: string;
   image_url?: string;
+  ingredients?: Array<{ product_id: number; quantity: number }>;
 }
