@@ -1,4 +1,12 @@
 -- ==========================================
+-- STABLE DATABASE SCHEMA
+-- ==========================================
+-- This file represents the complete, up-to-date schema
+-- Merged from init.sql and verified against dump.sql
+-- Last updated: 2026-06-30
+-- ==========================================
+
+-- ==========================================
 -- DROP EXISTING TABLES
 -- ==========================================
 
@@ -171,7 +179,6 @@ CREATE TABLE menu_items (
     CONSTRAINT chk_menu_items_status CHECK (status IN ('available', 'unavailable'))
 );
 
-
 -- ==========================================
 -- 4. ACTIVE SHOPPING CARTS
 -- ==========================================
@@ -213,7 +220,7 @@ CREATE TABLE orders (
     user_id INTEGER NOT NULL,
     amount NUMERIC(12, 2) NOT NULL,
     status VARCHAR(50) DEFAULT 'pending',
-    source VARCHAR(50) DEFAULT 'POS', -- Integrated from migration
+    source VARCHAR(50) DEFAULT 'POS',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     
@@ -224,7 +231,7 @@ CREATE TABLE orders (
     CONSTRAINT fk_orders_user FOREIGN KEY (user_id) 
         REFERENCES users(id) ON DELETE RESTRICT,
     CONSTRAINT chk_orders_amount CHECK (amount >= 0.00),
-    CONSTRAINT chk_orders_source CHECK (source IN ('POS', 'INVENTORY', 'PURCHASE', 'SYSTEM')) -- Integrated from migration
+    CONSTRAINT chk_orders_source CHECK (source IN ('POS', 'INVENTORY', 'PURCHASE', 'SYSTEM'))
 );
 
 CREATE TABLE order_items (
@@ -249,7 +256,7 @@ CREATE TABLE order_items (
 );
 
 -- ==========================================
--- 6. INVENTORY MOVEMENTS LOGS (Integrated Table)
+-- 6. INVENTORY MOVEMENTS LOGS
 -- ==========================================
 
 CREATE TABLE inventory_movements (
@@ -283,10 +290,27 @@ CREATE TABLE inventory_movements (
 -- 7. PERFORMANCE INDEXES
 -- ==========================================
 
+-- Inventory movements indexes
 CREATE INDEX IF NOT EXISTS idx_inventory_movements_merchant ON inventory_movements(merchant_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_movements_product ON inventory_movements(product_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_movements_type ON inventory_movements(movement_type);
 CREATE INDEX IF NOT EXISTS idx_inventory_movements_created_at ON inventory_movements(created_at);
 
+-- Merchant invitation indexes
 CREATE INDEX IF NOT EXISTS idx_merchant_invitation_merchant_status ON merchant_invitation(merchant_id, status);
 CREATE INDEX IF NOT EXISTS idx_merchant_invitation_token ON merchant_invitation(token);
+
+-- Products indexes
+CREATE INDEX IF NOT EXISTS idx_products_merchant ON products(merchant_id);
+CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
+CREATE INDEX IF NOT EXISTS idx_products_status ON products(status);
+
+-- Orders indexes
+CREATE INDEX IF NOT EXISTS idx_orders_merchant ON orders(merchant_id);
+CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at);
+
+-- Menu items indexes
+CREATE INDEX IF NOT EXISTS idx_menu_items_merchant ON menu_items(merchant_id);
+CREATE INDEX IF NOT EXISTS idx_menu_items_status ON menu_items(status);
