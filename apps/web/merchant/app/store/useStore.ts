@@ -7,6 +7,7 @@ export interface Merchant {
   store_name: string;
   store_type: string;
   role: string;
+  status: string;
 }
 
 interface StoreState {
@@ -32,15 +33,18 @@ export const useStore = create<StoreState>()(
           const response = await apiClient.get('/merchants/my');
           const stores: Merchant[] = response.data;
           
-          // Restore previously selected store or select first available
+          // Filter to only show active merchant memberships
+          const activeStores = stores.filter(store => store.status === 'active');
+          
           const currentStore = get().currentStore;
-          const restoredStore = currentStore 
-            ? stores.find(s => s.id === currentStore.id) 
-            : stores[0];
+          
+          // Restore previously selected store or select first available (from active stores only)
+          const foundStore = currentStore ? activeStores.find(s => s.id === currentStore.id) : null;
+          const restoredStore = foundStore || activeStores[0] || null;
 
           set({ 
-            stores, 
-            currentStore: restoredStore || stores[0] || null,
+            stores: activeStores, 
+            currentStore: restoredStore,
             isLoading: false 
           });
         } catch (error) {

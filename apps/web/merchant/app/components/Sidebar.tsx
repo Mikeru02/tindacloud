@@ -10,6 +10,7 @@ interface NavItem {
   href: string;
   icon: React.ReactNode;
   storeTypes?: string[];
+  allowedRoles?: string[];
 }
 
 interface SidebarProps {
@@ -29,6 +30,7 @@ const navItems: NavItem[] = [
         <rect x="3" y="14" width="7" height="7"></rect>
       </svg>
     ),
+    allowedRoles: ['owner', 'co-owner', 'manager'],
   },
   {
     name: 'POS',
@@ -40,6 +42,7 @@ const navItems: NavItem[] = [
         <line x1="12" y1="17" x2="12" y2="21"></line>
       </svg>
     ),
+    allowedRoles: ['owner', 'cashier'],
   },
   {
     name: 'Menu',
@@ -54,6 +57,7 @@ const navItems: NavItem[] = [
         <line x1="10" y1="9" x2="8" y2="9"></line>
       </svg>
     ),
+    allowedRoles: ['owner', 'co-owner', 'manager'],
   },
   {
     name: 'Inventory',
@@ -65,6 +69,7 @@ const navItems: NavItem[] = [
         <line x1="12" y1="22.08" x2="12" y2="12"></line>
       </svg>
     ),
+    allowedRoles: ['owner', 'co-owner', 'manager'],
   },
   {
     name: 'Orders',
@@ -76,6 +81,7 @@ const navItems: NavItem[] = [
         <path d="M16 10a4 4 0 0 1-8 0"></path>
       </svg>
     ),
+    allowedRoles: ['owner', 'co-owner', 'manager'],
   },
   {
     name: 'Analytics',
@@ -87,6 +93,7 @@ const navItems: NavItem[] = [
         <line x1="6" y1="20" x2="6" y2="14"></line>
       </svg>
     ),
+    allowedRoles: ['owner', 'co-owner', 'manager'],
   },
   {
     name: 'Staff',
@@ -99,6 +106,7 @@ const navItems: NavItem[] = [
         <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
       </svg>
     ),
+    allowedRoles: ['owner', 'co-owner', 'manager'],
   },
   {
     name: 'Settings',
@@ -109,6 +117,7 @@ const navItems: NavItem[] = [
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
       </svg>
     ),
+    allowedRoles: ['owner', 'co-owner', 'manager'],
   },
 ];
 
@@ -174,80 +183,93 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
       {/* Store Switcher */}
       <div className="p-4 border-b border-[#333]">
-        <div className="relative">
-          <button
-            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-[#333] hover:bg-[#444] transition-colors"
-            style={{ color: '#9ca3af' }}
-          >
-            <div className="flex items-center gap-3">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          <div className="relative">
+            <button
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-[#333] hover:bg-[#444] transition-colors"
+              style={{ color: '#9ca3af' }}
+            >
+              <div className="flex items-center gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                  <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+                <span className="font-medium truncate">
+                  {isLoading ? 'Loading...' : currentStore?.store_name || 'Select Store'}
+                </span>
+              </div>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}>
+                <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
-              <span className="font-medium truncate">
-                {isLoading ? 'Loading...' : currentStore?.store_name || 'Select Store'}
-              </span>
-            </div>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}>
-              <polyline points="6 9 12 15 18 9"></polyline>
-            </svg>
-          </button>
+            </button>
 
-          {isDropdownOpen && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-[#333] border border-[#444] rounded-lg shadow-lg z-10 max-h-64 overflow-y-auto">
-              {stores.map((store) => (
+            {isDropdownOpen && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-[#333] border border-[#444] rounded-lg shadow-lg z-10 max-h-64 overflow-y-auto">
+                {stores.map((store) => (
+                  <button
+                    key={store.id}
+                    onClick={() => handleStoreSelect(store)}
+                    className={`w-full text-left px-4 py-3 hover:bg-[#444] transition-colors flex items-center gap-3 ${
+                      currentStore?.id === store.id ? 'bg-[#22c55e]/20 text-[#22c55e]' : 'text-[#9ca3af]'
+                    }`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                      <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{store.store_name}</div>
+                      <div className="text-xs opacity-70 capitalize">{store.role}</div>
+                    </div>
+                    {currentStore?.id === store.id && (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    )}
+                  </button>
+                ))}
                 <button
-                  key={store.id}
-                  onClick={() => handleStoreSelect(store)}
-                  className={`w-full text-left px-4 py-3 hover:bg-[#444] transition-colors flex items-center gap-3 ${
-                    currentStore?.id === store.id ? 'bg-[#22c55e]/20 text-[#22c55e]' : 'text-[#9ca3af]'
-                  }`}
+                  onClick={() => {
+                    setIsDropdownOpen(false);
+                    router.push('/dashboard/stores/add');
+                  }}
+                  className="w-full text-left px-4 py-3 hover:bg-[#444] transition-colors flex items-center gap-3 text-[#22c55e] border-t border-[#444]"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
                   </svg>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">{store.store_name}</div>
-                    <div className="text-xs opacity-70 capitalize">{store.role}</div>
-                  </div>
-                  {currentStore?.id === store.id && (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                  )}
+                  <span className="font-medium">Create New Store</span>
                 </button>
-              ))}
-              <button
-                onClick={() => {
-                  setIsDropdownOpen(false);
-                  router.push('/dashboard/stores/add');
-                }}
-                className="w-full text-left px-4 py-3 hover:bg-[#444] transition-colors flex items-center gap-3 text-[#22c55e] border-t border-[#444]"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="5" x2="12" y2="19"></line>
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                <span className="font-medium">Create New Store</span>
-              </button>
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         {navItems
           .filter((item) => {
             // If no storeTypes specified, show for all store types
             if (!item.storeTypes || item.storeTypes.length === 0) {
+              // Check role-based access (case-insensitive)
+              if (item.allowedRoles && item.allowedRoles.length > 0) {
+                return currentStore && item.allowedRoles.some(
+                  allowedRole => allowedRole.toLowerCase() === currentStore.role.toLowerCase()
+                );
+              }
               return true;
             }
             // Only show if current store type is in the allowed storeTypes (case-insensitive)
-            return currentStore && item.storeTypes.some(
+            const storeTypeMatch = currentStore && item.storeTypes.some(
               type => type.toLowerCase() === currentStore.store_type.toLowerCase()
             );
+            // Check role-based access (case-insensitive)
+            if (item.allowedRoles && item.allowedRoles.length > 0) {
+              return storeTypeMatch && item.allowedRoles.some(
+                allowedRole => allowedRole.toLowerCase() === currentStore.role.toLowerCase()
+              );
+            }
+            return storeTypeMatch;
           })
           .map((item) => {
             const isActive = item.href === '/dashboard'

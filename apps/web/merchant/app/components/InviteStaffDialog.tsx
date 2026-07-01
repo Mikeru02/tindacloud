@@ -12,7 +12,7 @@ interface InviteStaffDialogProps {
 
 export default function InviteStaffDialog({ show, onClose, onSuccess, merchantId }: InviteStaffDialogProps) {
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState('Cashier');
+  const [role, setRole] = useState('cashier');
   const [isInviting, setIsInviting] = useState(false);
   const [error, setError] = useState('');
 
@@ -36,7 +36,7 @@ export default function InviteStaffDialog({ show, onClose, onSuccess, merchantId
 
       // Reset form
       setEmail('');
-      setRole('Cashier');
+      setRole('cashier');
 
       onSuccess();
       onClose();
@@ -117,9 +117,10 @@ export default function InviteStaffDialog({ show, onClose, onSuccess, merchantId
                 style={{ borderColor: '#333' }}
                 required
               >
-                <option value="Owner">Owner</option>
-                <option value="Manager">Manager</option>
-                <option value="Cashier">Cashier</option>
+                <option value="owner">Owner</option>
+                <option value="co-owner">Co-Owner</option>
+                <option value="manager">Manager</option>
+                <option value="cashier">Cashier</option>
               </select>
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
                 <path d="m6 9 6 6 6-6"/>

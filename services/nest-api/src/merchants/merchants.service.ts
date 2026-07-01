@@ -39,6 +39,7 @@ export class MerchantsService {
       store_name: mm.merchant.store_name,
       store_type: mm.merchant.store_type,
       role: mm.role,
+      status: mm.status,
     }));
   }
 

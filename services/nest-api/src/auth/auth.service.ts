@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -90,7 +90,12 @@ export class AuthService {
     await this.merchantMemberRepository.save(merchantMember);
 
     // Generate JWT token
-    const payload = { sub: savedUser.id, email: savedUser.email };
+    const payload = { 
+      sub: savedUser.id, 
+      email: savedUser.email,
+      merchantId: savedMerchant.id,
+      role: 'owner'
+    };
     const access_token = this.jwtService.sign(payload);
 
     return {
@@ -123,18 +128,33 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Get merchant membership
-    const merchantMember = await this.merchantMemberRepository.findOne({
+    // Get all merchant memberships for this user
+    const merchantMembers = await this.merchantMemberRepository.find({
       where: { user_id: user.id },
       relations: { merchant: true },
     });
 
-    if (!merchantMember) {
+    if (!merchantMembers || merchantMembers.length === 0) {
       throw new UnauthorizedException('User is not associated with any merchant');
     }
 
+    // Filter out inactive merchant memberships
+    const activeMembers = merchantMembers.filter(member => member.status === 'active');
+
+    if (activeMembers.length === 0) {
+      throw new ForbiddenException('Your account is inactive in all stores. Please contact the owner or manager for assistance.');
+    }
+
+    // Use the first active merchant membership
+    const activeMember = activeMembers[0];
+
     // Generate JWT token
-    const payload = { sub: user.id, email: user.email };
+    const payload = { 
+      sub: user.id, 
+      email: user.email,
+      merchantId: activeMember.merchant_id,
+      role: activeMember.role
+    };
     const access_token = this.jwtService.sign(payload);
 
     return {

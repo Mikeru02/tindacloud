@@ -9,12 +9,12 @@ interface StaffMember {
   merchant_id: number;
   user_id: number;
   role: string;
+  status: string;
   user: {
     id: number;
     email: string;
     first_name: string;
     last_name: string;
-    status: string;
   };
 }
 
@@ -37,6 +37,9 @@ export default function StaffPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [editingMember, setEditingMember] = useState<StaffMember | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [newRole, setNewRole] = useState('');
 
   const fetchStaff = async () => {
     if (!currentStore?.id) return;
@@ -112,6 +115,118 @@ export default function StaffPage() {
     const link = `${window.location.origin}/invite/${token}`;
     await navigator.clipboard.writeText(link);
     alert('Link copied to clipboard');
+  };
+
+  const handleDeleteStaff = async (member: StaffMember) => {
+    if (!currentStore?.id) return;
+    
+    const confirmed = window.confirm(`Are you sure you want to remove ${getStaffName(member)} from the staff?`);
+    if (!confirmed) return;
+
+    try {
+      await apiClient.delete(`/merchant-members/${member.user_id}`, {
+        params: { merchantId: currentStore.id }
+      });
+      fetchStaff();
+      alert('Staff member removed successfully');
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to remove staff member';
+      setError(errorMessage);
+      alert(errorMessage);
+    }
+  };
+
+  const handleEditStaff = (member: StaffMember) => {
+    setEditingMember(member);
+    setNewRole(member.role);
+    setShowEditDialog(true);
+  };
+
+  const handleUpdateRole = async () => {
+    if (!editingMember || !currentStore?.id) return;
+
+    try {
+      await apiClient.patch(`/merchant-members/${editingMember.user_id}/role`, 
+        { role: newRole },
+        { params: { merchantId: currentStore.id } }
+      );
+      fetchStaff();
+      setShowEditDialog(false);
+      setEditingMember(null);
+      alert('Role updated successfully');
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to update role';
+      setError(errorMessage);
+      alert(errorMessage);
+    }
+  };
+
+  const handleToggleStatus = async (member: StaffMember) => {
+    if (!currentStore?.id) return;
+
+    const newStatus = member.status === 'active' ? 'inactive' : 'active';
+    const confirmed = window.confirm(
+      `Are you sure you want to set ${getStaffName(member)} to ${newStatus} in this store? ${newStatus === 'inactive' ? 'They will not be able to access this store.' : ''}`
+    );
+    
+    if (!confirmed) return;
+
+    try {
+      await apiClient.patch(`/merchant-members/${member.user_id}/status`, 
+        { status: newStatus },
+        { params: { merchantId: currentStore.id } }
+      );
+      fetchStaff();
+      alert(`Staff member ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully`);
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to update status';
+      setError(errorMessage);
+      alert(errorMessage);
+    }
+  };
+
+  const canEditOrDelete = (member: StaffMember) => {
+    if (!currentStore) return false;
+    
+    // Get current user ID from localStorage
+    const userStr = localStorage.getItem('user');
+    const currentUser = userStr ? JSON.parse(userStr) : null;
+    const currentUserId = currentUser?.id;
+
+    // Owner/co-owner can edit/delete anyone except themselves (case-insensitive)
+    if (currentStore.role.toLowerCase() === 'owner' || currentStore.role.toLowerCase() === 'co-owner') {
+      return member.user_id !== currentUserId;
+    }
+    
+    // Manager can edit/delete non-owners (case-insensitive)
+    if (currentStore.role.toLowerCase() === 'manager') {
+      return member.role.toLowerCase() !== 'owner' && member.role.toLowerCase() !== 'co-owner';
+    }
+    
+    // Cashier cannot edit/delete
+    return false;
+  };
+
+  const canChangeStatus = (member: StaffMember) => {
+    if (!currentStore) return false;
+    
+    // Get current user ID from localStorage
+    const userStr = localStorage.getItem('user');
+    const currentUser = userStr ? JSON.parse(userStr) : null;
+    const currentUserId = currentUser?.id;
+
+    // Owner/co-owner can change status of anyone except themselves
+    if (currentStore.role.toLowerCase() === 'owner' || currentStore.role.toLowerCase() === 'co-owner') {
+      return member.user_id !== currentUserId;
+    }
+    
+    // Manager can change status of non-owners
+    if (currentStore.role.toLowerCase() === 'manager') {
+      return member.role.toLowerCase() !== 'owner' && member.role.toLowerCase() !== 'co-owner';
+    }
+    
+    // Cashier cannot change status
+    return false;
   };
 
   if (error) {
@@ -291,24 +406,55 @@ export default function StaffPage() {
                       <td className="p-3 sm:p-4 text-sm sm:text-base hidden sm:table-cell" style={{ color: '#9ca3af' }}>{member.user?.email || 'N/A'}</td>
                       <td className="p-3 sm:p-4 text-sm sm:text-base" style={{ color: '#9ca3af' }}>{member.role}</td>
                       <td className="p-3 sm:p-4">
-                        <span className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(member.user?.status || 'inactive')}`}>
-                          {member.user?.status || 'Inactive'}
+                        <span className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(member.status || 'inactive')}`}>
+                          {member.status || 'Inactive'}
                         </span>
                       </td>
                       <td className="p-3 sm:p-4">
                         <div className="flex gap-2">
-                          <button className="p-2 rounded hover:bg-[#444] transition-colors" style={{ color: '#22c55e' }}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                            </svg>
-                          </button>
-                          <button className="p-2 rounded hover:bg-[#444] transition-colors" style={{ color: '#ef4444' }}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="3 6 5 6 21 6"></polyline>
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                            </svg>
-                          </button>
+                          {canEditOrDelete(member) && (
+                            <>
+                              <button 
+                                onClick={() => handleEditStaff(member)}
+                                className="p-2 rounded hover:bg-[#444] transition-colors" 
+                                style={{ color: '#22c55e' }}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteStaff(member)}
+                                className="p-2 rounded hover:bg-[#444] transition-colors" 
+                                style={{ color: '#ef4444' }}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="3 6 5 6 21 6"></polyline>
+                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                              </button>
+                            </>
+                          )}
+                          {canChangeStatus(member) && (
+                            <button 
+                              onClick={() => handleToggleStatus(member)}
+                              className="p-2 rounded hover:bg-[#444] transition-colors" 
+                              style={{ color: member.status === 'active' ? '#f59e0b' : '#22c55e' }}
+                              title={member.status === 'active' ? 'Deactivate' : 'Activate'}
+                            >
+                              {member.status === 'active' ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                </svg>
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                </svg>
+                              )}
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -327,6 +473,57 @@ export default function StaffPage() {
         onSuccess={fetchStaff}
         merchantId={currentStore?.id || 0}
       />
+
+      {/* Edit Role Dialog */}
+      {showEditDialog && editingMember && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#222] rounded-xl border border-[#333] p-6 w-full max-w-md">
+            <h3 className="text-xl font-semibold mb-4" style={{ color: '#22c55e' }}>
+              Edit Staff Role
+            </h3>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
+                Staff Member
+              </label>
+              <div className="px-4 py-3 rounded-lg bg-[#333]" style={{ color: '#22c55e' }}>
+                {getStaffName(editingMember)}
+              </div>
+            </div>
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-2" style={{ color: '#9ca3af' }}>
+                Role
+              </label>
+              <select
+                value={newRole}
+                onChange={(e) => setNewRole(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg bg-[#1a1a1a] border-2 focus:outline-none focus:border-[#22c55e] transition-colors"
+                style={{ borderColor: '#333', color: '#22c55e' }}
+              >
+                <option value="owner">Owner</option>
+                <option value="manager">Manager</option>
+                <option value="cashier">Cashier</option>
+              </select>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowEditDialog(false);
+                  setEditingMember(null);
+                }}
+                className="flex-1 px-4 py-3 rounded-lg font-medium border border-[#444] bg-[#1a1a1a] text-gray-300 hover:bg-[#2a2a2a] hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateRole}
+                className="flex-1 px-4 py-3 rounded-lg font-medium bg-[#22c55e] text-[#1a1a1a] hover:bg-[#16a34a] transition-colors"
+              >
+                Update Role
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

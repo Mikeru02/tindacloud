@@ -13,6 +13,9 @@ export class MerchantMember {
   @Column()
   role: string;
 
+  @Column({ default: 'active' })
+  status: string;
+
   @ManyToOne(() => Merchant, merchant => merchant.merchantMembers)
   @JoinColumn({ name: 'merchant_id' })
   merchant: Merchant;
