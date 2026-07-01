@@ -94,13 +94,16 @@ CREATE TABLE merchant_members (
     merchant_id INTEGER,
     user_id INTEGER,
     role VARCHAR(50) NOT NULL,
+    status VARCHAR(50) DEFAULT 'active',
     
     -- CONSTRAINTS
     CONSTRAINT pk_merchant_members PRIMARY KEY (merchant_id, user_id),
     CONSTRAINT fk_members_merchant FOREIGN KEY (merchant_id) 
         REFERENCES merchants(id) ON DELETE CASCADE,
     CONSTRAINT fk_members_user FOREIGN KEY (user_id) 
-        REFERENCES users(id) ON DELETE CASCADE
+        REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT chk_merchant_members_role CHECK (role IN ('owner', 'co-owner', 'manager', 'cashier')),
+    CONSTRAINT chk_merchant_members_status CHECK (status IN ('active', 'inactive'))
 );
 
 CREATE TABLE merchant_invitation (
@@ -121,7 +124,8 @@ CREATE TABLE merchant_invitation (
     CONSTRAINT uq_invitation_token UNIQUE (token),
     CONSTRAINT fk_invitation_merchant FOREIGN KEY (merchant_id) 
         REFERENCES merchants(id) ON DELETE CASCADE,
-    CONSTRAINT chk_invitation_status CHECK (status IN ('pending', 'accepted', 'cancelled', 'expired'))
+    CONSTRAINT chk_invitation_status CHECK (status IN ('pending', 'accepted', 'cancelled', 'expired')),
+    CONSTRAINT chk_invitation_role CHECK (role IN ('owner', 'co-owner', 'manager', 'cashier'))
 );
 
 -- ==========================================
